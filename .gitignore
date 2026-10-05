@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Temporales de tools/check-analogia.mjs (compila el JSX al vuelo)
+.analogia*.tmp.mjs

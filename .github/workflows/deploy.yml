@@ -1,0 +1,57 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  # Un solo despliegue a la vez, pero NO se cancela el que esta en curso.
+  # Con `true`, empujar varios commits seguidos cancelaba el deploy a medio
+  # camino y dejaba un despliegue colgado en la API de Pages; el siguiente run
+  # se quedaba 10 minutos esperandolo y abortaba con "Timeout reached".
+  # Es lo que dice la plantilla oficial de Pages, y por eso el arreglo de los
+  # ojos nunca llego a publicarse.
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Lo que se publica es lo que pasó sus comprobaciones. Hasta hoy aquí solo
+      # se construía: las sondas existían pero dependían de acordarse de
+      # correrlas en local, que es justo lo que Question Lab dejó de hacer en
+      # agosto y por eso es la única que no ha vuelto a romper un despliegue.
+      - name: Las comprobaciones de Live Board
+        run: npm run check
+
+      - run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
