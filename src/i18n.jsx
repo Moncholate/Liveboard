@@ -173,6 +173,12 @@ export const TEXTOS = {
   nombreParaGuardar: { es: '¿Con qué nombre lo guardo?', en: 'What name should I save it under?' },
   guardadoEn: { es: (n) => `Guardado en «${n}».`, en: (n) => `Saved to “${n}”.` },
   abrirSalaCon: { es: 'Abrir una sala', en: 'Open a room' },
+
+  // Tema y fondo
+  usarClaro: { es: 'Usar modo claro', en: 'Use light mode' },
+  usarOscuro: { es: 'Usar modo oscuro', en: 'Use dark mode' },
+  fondoProyector: { es: 'Fondo del proyector', en: 'Projector background' },
+  fondoAyuda: { es: 'Se ve detrás de las actividades. Los celulares no cambian.', en: 'Shown behind the activities. Phones don’t change.' },
 }
 
 const IdiomaCtx = createContext('es')

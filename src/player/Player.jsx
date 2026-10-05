@@ -18,6 +18,7 @@ import { Button, Center, Logo } from '../ui.jsx'
 import { ProveedorIdioma, SelectorIdioma, idiomaDelNavegador, traducir, useT, valido } from '../i18n.jsx'
 import { ALTERNATIVAS, LIMITES, idAlAzar, limpiarAbierta, nombreValido, palabrasDe } from '../live/logic.js'
 import { comoLista, raiz } from '../live/sala.js'
+import { useTema } from '../tema.jsx'
 
 /* sessionStorage y no localStorage: cada pestaña es un estudiante distinto, y
    al recargar se vuelve a la misma sala con el mismo apodo. */
@@ -28,6 +29,7 @@ const sesion = {
 const pidKey = (pin) => `liveboard-pid-${pin}`
 
 export default function Player({ initialPin }) {
+  useTema()
   const store = useStore()
   const [yo, setYo] = useState(null)
   const [revisando, setRevisando] = useState(Boolean(initialPin && sesion.get(pidKey(initialPin))))

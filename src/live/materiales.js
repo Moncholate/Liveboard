@@ -4,7 +4,7 @@
    Lo que el docente prepara en casa y carga en clase con un clic. Vive en su
    cuenta, no en el computador del proyector:
 
-     docentes/{uid}/liveboard/{id}   { nombre, idioma, actividades, actualizado }
+     docentes/{uid}/liveboard/{id}   { nombre, idioma, fondo, actividades, actualizado }
 
    `docentes/{uid}` es del bundle entero: cada app guarda lo suyo en su propia
    rama (liveboard, y las que vengan), y las reglas dejan leer y escribir solo
@@ -14,6 +14,7 @@
    ========================================================================== */
 import { idAlAzar, limpiarActividad } from './logic.js'
 import { comoLista } from './sala.js'
+import { fondoValido } from './fondos.js'
 
 export const rutaMateriales = (uid) => `docentes/${uid}/liveboard`
 export const rutaMaterial = (uid, id) => `${rutaMateriales(uid)}/${id}`
@@ -22,9 +23,10 @@ export const idMaterialNuevo = (azar = Math.random) => idAlAzar(azar)
 
 /** Lo que se guarda: sin espacios de sobra, con el idioma, y con la hora del
     servidor (`stamp`) para ordenar la lista. */
-export const materialParaGuardar = ({ nombre, idioma, actividades }, stamp) => ({
+export const materialParaGuardar = ({ nombre, idioma, fondo, actividades }, stamp) => ({
   nombre: String(nombre || '').replace(/\s+/g, ' ').trim().slice(0, 60),
   idioma: idioma === 'en' ? 'en' : 'es',
+  fondo: fondoValido(fondo),
   actividades: comoLista(actividades).map(limpiarActividad),
   actualizado: stamp,
 })
@@ -35,6 +37,7 @@ export const listaDeMateriales = (raw) => Object.entries(raw || {})
     id,
     nombre: m?.nombre || '',
     idioma: m?.idioma === 'en' ? 'en' : 'es',
+    fondo: fondoValido(m?.fondo),
     actividades: comoLista(m?.actividades),
     actualizado: typeof m?.actualizado === 'number' ? m.actualizado : 0,
   }))

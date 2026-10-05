@@ -5,6 +5,7 @@ import Mod from './host/Mod.jsx'
 import Player from './player/Player.jsx'
 import { Button, Logo } from './ui.jsx'
 import { ProveedorIdioma, SelectorIdioma, idiomaDelNavegador, useT, valido } from './i18n.jsx'
+import { useTema } from './tema.jsx'
 
 /* Ruteo por hash: GitHub Pages solo sirve index.html, así que #/host,
    #/join?pin=123456, #/mod y #/materiales nunca dan 404. */
@@ -34,6 +35,7 @@ export default function App() {
 /* La portada la ven estudiantes y docentes: idioma del navegador, o el último
    que eligió el docente en este computador. */
 function InicioConIdioma() {
+  useTema()
   const [idioma, setIdioma] = useState(() => valido(guardado.get(IDIOMA_KEY) || idiomaDelNavegador()))
   return (
     <ProveedorIdioma value={idioma}>

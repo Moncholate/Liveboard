@@ -30,10 +30,18 @@ import { Abiertas, Encuesta, Escala, Nube } from '../live/Resultados.jsx'
 import { Moderacion } from '../live/Moderacion.jsx'
 import { Editor } from './Editor.jsx'
 import { Cuenta, iniciarSesion } from './Cuenta.jsx'
+import { BotonTema, useTema } from '../tema.jsx'
+import { fondoPorId, fondoValido } from '../live/fondos.js'
+import { SelectorFondo } from '../live/SelectorFondo.jsx'
 
 const PIN_KEY = 'liveboard-host-pin'
 const ULTIMAS_KEY = 'liveboard-ultimas'
 export const IDIOMA_KEY = 'liveboard-idioma'
+/* El fondo del proyector: es de este computador, no de la sala, porque solo
+   lo ve el proyector (los celulares no lo usan). Un material lo trae consigo. */
+const FONDO_KEY = 'liveboard-fondo'
+/* El tema del proyector parte en claro: en una sala con luz se lee mejor. */
+const TEMA_PROYECTOR_KEY = 'liveboard-tema-proyector'
 /* Qué material se cargó en esta sala, para ofrecer «Guardar cambios en…». */
 const ORIGEN_KEY = 'liveboard-origen'
 
@@ -90,6 +98,9 @@ function Sala({ store, pin, onCerrada }) {
   const user = useUser(store)
   const acciones = useMemo(() => accionesDeSala(store, pin), [store, pin])
   const idioma = valido(idiomaRaw)
+  const tema = useTema(TEMA_PROYECTOR_KEY, 'claro')
+  const [fondo, setFondoEstado] = useState(() => fondoValido(guardado.get(FONDO_KEY)))
+  const setFondo = (id) => { setFondoEstado(fondoValido(id)); guardado.set(FONDO_KEY, fondoValido(id)) }
 
   const actividades = comoLista(actividadesRaw)
   const idx = estado?.idx ?? null
@@ -112,17 +123,18 @@ function Sala({ store, pin, onCerrada }) {
   return (
     <ProveedorIdioma value={idioma}>
       <div className="min-h-screen flex flex-col">
-        <Encabezado store={store} user={user} pin={pin} meta={meta} online={online} onCerrar={cerrar} />
+        <Encabezado store={store} user={user} pin={pin} meta={meta} online={online} tema={tema} onCerrar={cerrar} />
         {actual
           ? <Presentar store={store} base={base} pin={pin} idx={idx} actividad={actual} total={actividades.length}
-              estado={estado} participantes={participantes} acciones={acciones} />
-          : <Preparar store={store} user={user} pin={pin} online={online} actividades={actividades} acciones={acciones} />}
+              estado={estado} participantes={participantes} acciones={acciones} fondo={fondo} />
+          : <Preparar store={store} user={user} pin={pin} online={online} actividades={actividades} acciones={acciones}
+              fondo={fondo} setFondo={setFondo} />}
       </div>
     </ProveedorIdioma>
   )
 }
 
-function Encabezado({ store, user, pin, meta, online, onCerrar }) {
+function Encabezado({ store, user, pin, meta, online, tema, onCerrar }) {
   const t = useT()
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3 bg-white border-b border-slate-200">
@@ -131,6 +143,7 @@ function Encabezado({ store, user, pin, meta, online, onCerrar }) {
       <span className="flex-1" />
       <span className="text-slate-600">{t('conectados', conectados(online))}</span>
       <span className="text-slate-500">{t('pin')} <b className="text-slate-900 tracking-widest">{pin}</b></span>
+      <BotonTema tema={tema} etiqueta={tema.oscuro ? t('usarClaro') : t('usarOscuro')} />
       <Cuenta store={store} user={user} />
       <BotonCelular pin={pin} clave={meta?.clave} />
       <Button variant="danger" className="!px-3 !py-1.5 text-sm" onClick={onCerrar}>{t('cerrarSala')}</Button>
@@ -140,7 +153,7 @@ function Encabezado({ store, user, pin, meta, online, onCerrar }) {
 
 /* ── Preparar ────────────────────────────────────────────────────────────── */
 
-function Preparar({ store, user, pin, online, actividades, acciones }) {
+function Preparar({ store, user, pin, online, actividades, acciones, fondo, setFondo }) {
   const t = useT()
   /* Se edita en local y se guarda en la sala con una pausa: escribir en la base
      con cada tecla hace saltar el cursor cuando vuelve el eco. */
@@ -178,6 +191,13 @@ function Preparar({ store, user, pin, online, actividades, acciones }) {
           </div>
           <SelectorIdioma idioma={t.idioma} onCambiar={cambiarIdioma} />
         </div>
+        <div className="rounded-2xl bg-white border border-slate-200 p-4 flex flex-col gap-2">
+          <div>
+            <p className="font-bold text-slate-800">{t('fondoProyector')}</p>
+            <p className="text-xs text-slate-500">{t('fondoAyuda')}</p>
+          </div>
+          <SelectorFondo valor={fondo} onCambiar={setFondo} />
+        </div>
       </div>
 
       <section className="flex flex-col gap-3">
@@ -185,8 +205,8 @@ function Preparar({ store, user, pin, online, actividades, acciones }) {
           <h2 className="text-xl font-black text-slate-900">{t('actividades')}</h2>
           <Button disabled={primeraLista < 0} onClick={() => lanzar(primeraLista)}>{t('empezar')}</Button>
         </div>
-        <PanelMateriales store={store} user={user} lista={lista}
-          onCargar={(m) => { setLista(actividadesParaSala(m)); cambiarIdioma(m.idioma) }} />
+        <PanelMateriales store={store} user={user} lista={lista} fondo={fondo}
+          onCargar={(m) => { setLista(actividadesParaSala(m)); cambiarIdioma(m.idioma); setFondo(m.fondo) }} />
         <Editor lista={lista} setLista={setLista} onMostrar={lanzar} />
       </section>
     </main>
@@ -194,7 +214,7 @@ function Preparar({ store, user, pin, online, actividades, acciones }) {
 }
 
 /* Cargar un material en la sala, o guardar lo que se armó aquí. */
-function PanelMateriales({ store, user, lista, onCargar }) {
+function PanelMateriales({ store, user, lista, fondo, onCargar }) {
   const t = useT()
   const raw = useValue(store, user ? rutaMateriales(user.uid) : null)
   const materiales = listaDeMateriales(raw)
@@ -232,7 +252,7 @@ function PanelMateriales({ store, user, lista, onCargar }) {
       if (!nombre || !nombre.trim()) return
       id = idMaterialNuevo()
     }
-    const m = materialParaGuardar({ nombre, idioma: t.idioma, actividades: lista }, store.stamp())
+    const m = materialParaGuardar({ nombre, idioma: t.idioma, fondo, actividades: lista }, store.stamp())
     await store.set(rutaMaterial(user.uid, id), m)
     recordar({ id, nombre: m.nombre })
     setAviso(t('guardadoEn', m.nombre))
@@ -297,7 +317,7 @@ function Unirse({ pin, online }) {
 
 /* ── Presentar ───────────────────────────────────────────────────────────── */
 
-function Presentar({ store, base, pin, idx, actividad, total, estado, participantes, acciones }) {
+function Presentar({ store, base, pin, idx, actividad, total, estado, participantes, acciones, fondo }) {
   const t = useT()
   const aid = actividad.id
   const respuestas = useValue(store, aid ? `${base}/respuestas/${aid}` : null)
@@ -306,10 +326,15 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
   const moderable = actividad.tipo === 'nube' || actividad.tipo === 'abierta'
   const n = cuantosRespondieron(respuestas)
   const pendientes = actividad.tipo === 'abierta' ? abiertas(respuestas, moderacion?.abiertas).pendientes.length : 0
+  /* Con fondo, el contenido va en un panel casi opaco (index.css) y el fondo
+     queda como marco: así todo se lee igual sobre cualquier fondo. */
+  const f = fondoPorId(fondo)
 
   return (
     <main className="flex-1 flex min-h-0">
       <div className="flex-1 flex flex-col min-w-0">
+        <div className={`flex-1 flex flex-col min-h-0 ${f.css ? 'p-5' : ''}`} style={f.css ? { background: f.css } : undefined}>
+        <div className={`flex-1 flex flex-col min-h-0 ${f.css ? 'panel-proyector rounded-3xl shadow-xl' : ''}`}>
         <div className="px-8 pt-6 flex items-center gap-3 text-slate-500">
           <span className="text-sm font-bold uppercase tracking-wider">{t(`tipo_${actividad.tipo}`)} · {t('deTotal', idx + 1, total)}</span>
           <span className="flex-1" />
@@ -326,6 +351,8 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
               <p className="text-2xl text-slate-500 mt-2">{t('respuestaN', n)}</p>
             </div>
           )}
+        </div>
+        </div>
         </div>
 
         <footer className="flex flex-wrap items-center gap-2 px-6 py-3 bg-white border-t border-slate-200">

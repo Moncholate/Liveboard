@@ -17,8 +17,10 @@ import { ProveedorIdioma, traducir, useT, valido } from '../i18n.jsx'
 import { accionesDeSala, comoLista, conectados, raiz } from '../live/sala.js'
 import { Moderacion } from '../live/Moderacion.jsx'
 import { Encuesta, Escala, Nube } from '../live/Resultados.jsx'
+import { useTema } from '../tema.jsx'
 
 export default function Mod({ pin, clave }) {
+  useTema()
   const store = useStore()
   const base = raiz(pin)
   const meta = useValue(store, `${base}/meta`)

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { IDIOMAS, TEXTOS, traducir } from '../i18n.jsx'
 import { TIPOS } from './logic.js'
 import { actividadesParaSala, listaDeMateriales, materialParaGuardar, rutaMaterial } from './materiales.js'
+import { FONDOS } from './fondos.js'
 
 describe('textos en español e inglés', () => {
   it('cada texto existe en los dos idiomas, y del mismo tipo', () => {
@@ -45,7 +46,7 @@ describe('mis materiales', () => {
       actividades: [{ id: 'a1', tipo: 'encuesta', pregunta: ' ¿Cuál? ', alternativas: ['A', '', 'B'] }],
     }, 123)
     expect(m).toEqual({
-      nombre: 'Célula inicio', idioma: 'es', actualizado: 123,
+      nombre: 'Célula inicio', idioma: 'es', fondo: 'ninguno', actualizado: 123,
       actividades: [{ id: 'a1', tipo: 'encuesta', pregunta: '¿Cuál?', alternativas: ['A', 'B'] }],
     })
   })
@@ -57,6 +58,20 @@ describe('mis materiales', () => {
     })
     expect(l.map(m => m.id)).toEqual(['nuevo', 'viejo'])
     expect(l[0]).toMatchObject({ idioma: 'en', actividades: [] })
+  })
+
+  it('guarda el fondo, y uno que no existe cae en «sin fondo»', () => {
+    expect(materialParaGuardar({ nombre: 'x', fondo: 'pizarra', actividades: [] }, 1).fondo).toBe('pizarra')
+    expect(materialParaGuardar({ nombre: 'x', fondo: 'marciano', actividades: [] }, 1).fondo).toBe('ninguno')
+    expect(listaDeMateriales({ a: { nombre: 'a' } })[0].fondo).toBe('ninguno')
+  })
+
+  it('cada fondo tiene nombre en los dos idiomas, y los oscuros lo dicen', () => {
+    for (const f of FONDOS) {
+      expect(f.es && f.en, f.id).toBeTruthy()
+      expect(typeof f.oscuro, f.id).toBe('boolean')
+    }
+    expect(new Set(FONDOS.map((f) => f.id)).size).toBe(FONDOS.length)
   })
 
   it('al cargarlo en una sala, cada actividad recibe un id nuevo', () => {

@@ -18,8 +18,11 @@ import { listaDeMateriales, idMaterialNuevo, materialParaGuardar, rutaMaterial, 
 import { Editor } from './Editor.jsx'
 import { Cuenta, iniciarSesion } from './Cuenta.jsx'
 import { IDIOMA_KEY, guardado } from './Host.jsx'
+import { BotonTema, useTema } from '../tema.jsx'
+import { SelectorFondo } from '../live/SelectorFondo.jsx'
 
 export default function Materiales() {
+  const tema = useTema('liveboard-tema')
   const store = useStore()
   const user = useUser(store)
   /* El idioma de esta página es el de la interfaz; el de cada material se
@@ -38,6 +41,7 @@ export default function Materiales() {
           <span className="font-bold text-slate-700">{traducir(idioma, 'misMateriales')}</span>
           <span className="flex-1" />
           <SelectorIdioma idioma={idioma} onCambiar={(l) => { setIdioma(l); guardado.set(IDIOMA_KEY, l) }} />
+          <BotonTema tema={tema} etiqueta={traducir(idioma, tema.oscuro ? 'usarClaro' : 'usarOscuro')} />
           <Cuenta store={store} user={user} />
         </header>
         <main className="flex-1 w-full max-w-3xl mx-auto p-6">
@@ -124,6 +128,7 @@ function Formulario({ store, ruta, inicial, onVolver }) {
   const t = useT()
   const [nombre, setNombre] = useState(inicial.nombre)
   const [idioma, setIdioma] = useState(inicial.idioma)
+  const [fondo, setFondo] = useState(inicial.fondo)
   const [lista, setLista] = useState(inicial.actividades)
   const [estado, setEstado] = useState('guardado')
   const primera = useRef(true)
@@ -132,11 +137,11 @@ function Formulario({ store, ruta, inicial, onVolver }) {
     if (primera.current) { primera.current = false; return }
     setEstado('guardando')
     const espera = setTimeout(async () => {
-      await store.set(ruta, materialParaGuardar({ nombre, idioma, actividades: lista }, store.stamp()))
+      await store.set(ruta, materialParaGuardar({ nombre, idioma, fondo, actividades: lista }, store.stamp()))
       setEstado('guardado')
     }, 500)
     return () => clearTimeout(espera)
-  }, [nombre, idioma, lista])
+  }, [nombre, idioma, fondo, lista])
 
   return (
     <div className="flex flex-col gap-4">
@@ -157,6 +162,13 @@ function Formulario({ store, ruta, inicial, onVolver }) {
             <p className="text-xs text-slate-500">{t('idiomaAyuda')}</p>
           </div>
           <SelectorIdioma idioma={idioma} onCambiar={setIdioma} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <div>
+            <p className="text-sm font-bold text-slate-700">{t('fondoProyector')}</p>
+            <p className="text-xs text-slate-500">{t('fondoAyuda')}</p>
+          </div>
+          <SelectorFondo valor={fondo} onCambiar={setFondo} />
         </div>
         <p className="text-xs text-slate-500">{t('guardadoAuto')}</p>
       </div>
