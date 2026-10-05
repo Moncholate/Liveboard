@@ -3,6 +3,7 @@
    ----------------------------------------------------------------------------
    boards/{pin}/
      meta          { creada, clave }   clave = la del enlace para moderar
+     idioma        'es' | 'en'   lo siguen el proyector y todos los celulares
      estado        { idx, abierta, resultados }
                    idx null = preparando (sala de espera); si no, la actividad
                    que se está mostrando
@@ -34,6 +35,7 @@ export const accionesDeSala = (store, pin) => {
     abrir: (abierta) => store.update(`${base}/estado`, { abierta }),
     resultados: (resultados) => store.update(`${base}/estado`, { resultados }),
     guardarActividades: (lista) => store.set(`${base}/actividades`, lista.map(limpiarActividad)),
+    cambiarIdioma: (idioma) => store.set(`${base}/idioma`, idioma === 'en' ? 'en' : 'es'),
     moderarPalabra: (aid, clave, decision) => store.set(`${base}/moderacion/${aid}/palabras/${clave}`, decision),
     decidirAbierta: (aid, pid, decision) => store.set(`${base}/moderacion/${aid}/abiertas/${pid}`, decision),
     cerrarSala: () => store.remove(base),

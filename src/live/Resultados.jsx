@@ -4,7 +4,8 @@
    Los usa el proyector (grandes) y el celular del docente (`chico`). Ninguno
    recibe nombres: lo que se dibuja aquí lo ve todo el curso.
    ========================================================================== */
-import { ALTERNATIVAS, ESCALA_ROTULOS, conteoEncuesta, estadisticaEscala, nube, tamanoEnNube } from './logic.js'
+import { ALTERNATIVAS, conteoEncuesta, estadisticaEscala, nube, tamanoEnNube } from './logic.js'
+import { useT } from '../i18n.jsx'
 
 /* Colores de la nube: los de las alternativas, en tonos que se leen sobre
    blanco. Se asignan por la clave, no por la posición, para que una palabra no
@@ -13,8 +14,9 @@ const COLORES_NUBE = ['text-violet-700', 'text-teal-700', 'text-orange-700', 'te
 const colorDe = (clave) => COLORES_NUBE[[...clave].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) % 997, 7) % COLORES_NUBE.length]
 
 export function Nube({ respuestas, moderacion, chico = false }) {
+  const t = useT()
   const visibles = nube(respuestas, moderacion).filter(p => !p.oculta)
-  if (!visibles.length) return <Vacio chico={chico}>Las palabras van a aparecer aquí.</Vacio>
+  if (!visibles.length) return <Vacio chico={chico}>{t('vacioNube')}</Vacio>
   const max = visibles[0].cuenta
   /* La más repetida al centro: se reparten alternando a cada lado. */
   const orden = []
@@ -60,12 +62,13 @@ export function Encuesta({ actividad, respuestas, chico = false }) {
 }
 
 export function Escala({ respuestas, chico = false }) {
+  const t = useT()
   const { votos, total, promedio } = estadisticaEscala(respuestas)
   const max = Math.max(1, ...votos)
   return (
     <div className="w-full flex flex-col items-center">
       <p className={`font-black text-slate-900 tabular-nums ${chico ? 'text-2xl mb-2' : 'text-7xl mb-4'}`}>
-        {promedio == null ? '–' : promedio.toLocaleString('es-CL')}
+        {promedio == null ? '–' : promedio.toLocaleString(t.idioma === 'en' ? 'en-US' : 'es-CL')}
         <span className={`font-bold text-slate-500 ${chico ? 'text-sm' : 'text-2xl'}`}> / 5</span>
       </p>
       <div className={`w-full flex items-end justify-center ${chico ? 'gap-2 h-24' : 'gap-6 h-[32vh]'}`}>
@@ -78,21 +81,22 @@ export function Escala({ respuestas, chico = false }) {
         ))}
       </div>
       <div className={`w-full flex justify-center border-t-2 border-slate-200 ${chico ? 'gap-2 pt-1' : 'gap-6 pt-2'}`}>
-        {ESCALA_ROTULOS.map((r, i) => (
+        {t('escala').map((r, i) => (
           <div key={i} className="flex-1 max-w-[9rem] text-center">
             <p className={`font-black text-slate-900 ${chico ? 'text-sm' : 'text-3xl'}`}>{i + 1}</p>
             {!chico && <p className="text-base text-slate-500">{r}</p>}
           </div>
         ))}
       </div>
-      {total === 0 && !chico && <p className="mt-4 text-slate-500">Todavía no hay respuestas.</p>}
+      {total === 0 && !chico && <p className="mt-4 text-slate-500">{t('sinRespuestas')}</p>}
     </div>
   )
 }
 
 /* Solo las aprobadas, y sin nombres. */
 export function Abiertas({ aprobadas, chico = false }) {
-  if (!aprobadas.length) return <Vacio chico={chico}>Las respuestas que apruebes van a aparecer aquí.</Vacio>
+  const t = useT()
+  if (!aprobadas.length) return <Vacio chico={chico}>{t('vacioAbiertas')}</Vacio>
   return (
     <div className={`w-full grid ${chico ? 'gap-2' : 'gap-4 sm:grid-cols-2 xl:grid-cols-3'}`}>
       {aprobadas.map(r => (

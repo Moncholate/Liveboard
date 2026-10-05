@@ -116,9 +116,10 @@ describe('respuestas abiertas', () => {
 
 describe('actividades', () => {
   it('no se lanza sin pregunta, ni una encuesta con menos de 2 alternativas', () => {
-    expect(problemaDe(actividadNueva('nube'))).toMatch(/pregunta/)
-    expect(problemaDe({ tipo: 'encuesta', pregunta: '¿Cuál?', alternativas: ['Sí', ' '] })).toMatch(/2 alternativas/)
+    expect(problemaDe(actividadNueva('nube'))).toBe('prob_sinPregunta')
+    expect(problemaDe({ tipo: 'encuesta', pregunta: '¿Cuál?', alternativas: ['Sí', ' '] })).toBe('prob_pocasAlternativas')
     expect(problemaDe({ tipo: 'escala', pregunta: '¿Qué tan seguro te sientes?' })).toBeNull()
+    expect(problemaDe({ tipo: 'otro', pregunta: 'x' })).toBe('prob_sinTipo')
   })
 
   it('cada actividad nueva trae su propio id, y se conserva al limpiarla', () => {

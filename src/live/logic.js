@@ -11,24 +11,9 @@
    ========================================================================== */
 import { esGroseria } from './groserias.js'
 
-export const TIPOS = {
-  nube: {
-    nombre: 'Nube de palabras',
-    ayuda: 'Cada estudiante escribe hasta 3 palabras. Las que más se repiten salen más grandes.',
-  },
-  encuesta: {
-    nombre: 'Encuesta',
-    ayuda: 'De 2 a 4 alternativas. Se ve cuántos eligieron cada una.',
-  },
-  escala: {
-    nombre: 'Escala 1–5',
-    ayuda: 'Para medir: qué tan seguro te sientes, cuánto te gustó, qué tan difícil fue.',
-  },
-  abierta: {
-    nombre: 'Respuesta abierta',
-    ayuda: 'Una respuesta corta. Solo se proyectan las que apruebas.',
-  },
-}
+/* Los tipos de actividad, en el orden en que se ofrecen. Sus nombres y su
+   ayuda están en i18n.jsx (tipo_nube, ayuda_nube…), en los dos idiomas. */
+export const TIPOS = ['nube', 'encuesta', 'escala', 'abierta']
 
 export const LIMITES = {
   pregunta: 140,
@@ -50,8 +35,6 @@ export const ALTERNATIVAS = [
   { letra: 'D', solido: 'bg-pink-600', texto: 'text-pink-700', tinte: 'bg-pink-50', borde: 'border-pink-600' },
 ]
 
-export const ESCALA_ROTULOS = ['Nada', 'Poco', 'Más o menos', 'Bastante', 'Mucho']
-
 /** Una actividad nueva, lista para editar. El id no cambia aunque se
     reordene la lista: las respuestas se guardan bajo él, no bajo la posición. */
 export const actividadNueva = (tipo, azar = Math.random) => ({
@@ -61,13 +44,14 @@ export const actividadNueva = (tipo, azar = Math.random) => ({
   ...(tipo === 'encuesta' ? { alternativas: ['', ''] } : {}),
 })
 
-/** ¿Se puede lanzar? Devuelve el motivo si no, para decirlo en pantalla. */
+/** ¿Se puede lanzar? Devuelve el motivo si no —una clave de i18n.jsx
+    (prob_sinPregunta…)— para decirlo en pantalla en el idioma de la sala. */
 export const problemaDe = (a) => {
-  if (!a || !TIPOS[a.tipo]) return 'Elige un tipo de actividad.'
-  if (!String(a.pregunta || '').trim()) return 'Falta la pregunta.'
+  if (!a || !TIPOS.includes(a.tipo)) return 'prob_sinTipo'
+  if (!String(a.pregunta || '').trim()) return 'prob_sinPregunta'
   if (a.tipo === 'encuesta') {
     const llenas = (a.alternativas || []).filter(x => String(x).trim())
-    if (llenas.length < LIMITES.minAlternativas) return 'La encuesta necesita al menos 2 alternativas.'
+    if (llenas.length < LIMITES.minAlternativas) return 'prob_pocasAlternativas'
   }
   return null
 }
