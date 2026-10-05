@@ -1,7 +1,7 @@
 export function Logo({ className = '' }) {
   return (
     <span className={`font-black tracking-tight ${className}`}>
-      Live<span className="text-teal-700">Board</span>
+      Live<span className="text-teal-700">board</span>
     </span>
   )
 }

@@ -37,7 +37,7 @@ jobs:
       # se construía: las sondas existían pero dependían de acordarse de
       # correrlas en local, que es justo lo que Question Lab dejó de hacer en
       # agosto y por eso es la única que no ha vuelto a romper un despliegue.
-      - name: Las comprobaciones de Live Board
+      - name: Las comprobaciones de Liveboard
         run: npm run check
 
       - run: npm run build

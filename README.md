@@ -1,4 +1,4 @@
-# Live Board
+# Liveboard
 
 La pizarra en vivo para cualquier asignatura. El docente proyecta, los estudiantes responden desde el celular con un PIN y un apodo.
 

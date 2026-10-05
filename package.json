@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Live Board · pizarra en vivo para cualquier asignatura: nube de palabras, encuestas, escalas y respuestas abiertas moderadas",
+  "description": "Liveboard · pizarra en vivo para cualquier asignatura: nube de palabras, encuestas, escalas y respuestas abiertas moderadas",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
