@@ -1,3 +1,9 @@
+/* Base DUA de la suite (anillo de foco, gris apagado legible), generada
+   desde design-tokens: no se edita aquí. */
+@import './dua.generated.css';
+
+@font-face{font-family:'Lexend';font-style:normal;font-weight:400 700;font-display:swap;src:url('./fonts/Lexend.woff2') format('woff2');}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,7 +11,8 @@
 html, body {
   background: #f8fafc; /* slate-50 */
   color: #0f172a;      /* slate-900 */
-  font-family: ui-rounded, 'Segoe UI', system-ui, -apple-system, sans-serif;
+  /* Lexend: la tipografía de interfaz de la suite (design-tokens, foundation). */
+  font-family: 'Lexend', system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -13,68 +20,72 @@ html, body {
    Casi opaco a propósito: así la nube, las barras y las respuestas se leen
    igual sobre cualquier fondo. El fondo queda como marco alrededor. */
 .panel-proyector { background: rgba(255, 255, 255, 0.92); }
-.lb-oscuro .panel-proyector { background: rgba(20, 24, 38, 0.92); }
+:root[data-theme="dark"] .panel-proyector { background: rgba(20, 24, 38, 0.92); }
 
 /* ── Modo oscuro ───────────────────────────────────────────────────────────
-   Una clase en <html> (ver tema.jsx) y, debajo, la versión oscura de cada
+   `data-theme="dark"` en <html> (ver tema.jsx), como en el resto de la
+   suite, y, debajo, la versión oscura de cada
    color que usa la app. Están TODOS los que aparecen en el código: si se
    agrega un color nuevo a una pantalla, hay que agregarlo aquí también.
 
-   Superficies: página #0f1320, tarjetas #1a1f2e, bordes #2c3346.
-   Texto: principal #e6e9f2, secundario #a3abc0, tenue #7c859c. */
-html.lb-oscuro, html.lb-oscuro body { background: #0f1320; color: #e6e9f2; color-scheme: dark; }
+   La rampa es la de toda la suite (Grammar HUB, Utility Belt, Grammaster…),
+   de foundation.neutral.dark en design-tokens: página #0c0e15, tarjetas
+   #141826, bordes #2a3042; texto #eceff8, secundario #c7cdda, apagado
+   #9aa2b6. Antes Kachai y Liveboard tenían una rampa propia, y su gris más
+   tenue (#7c859c) quedaba en 4,3:1 sobre las tarjetas, bajo AA. */
+:root[data-theme="dark"], :root[data-theme="dark"] body { background: #0c0e15; color: #eceff8; color-scheme: dark; }
 
-.lb-oscuro .bg-white { background-color: #1a1f2e; }
-.lb-oscuro .bg-white\/95 { background-color: rgba(15, 19, 32, 0.95); }
-.lb-oscuro .bg-slate-50 { background-color: #141826; }
-.lb-oscuro .bg-slate-100 { background-color: #252b3b; }
-.lb-oscuro .bg-slate-300 { background-color: #3a4256; }
-.lb-oscuro .hover\:bg-slate-50:hover, .lb-oscuro .hover\:bg-slate-100:hover { background-color: #252b3b; }
+:root[data-theme="dark"] .bg-white { background-color: #141826; }
+:root[data-theme="dark"] .bg-white\/95 { background-color: rgba(12, 14, 21, 0.95); }
+:root[data-theme="dark"] .bg-slate-50 { background-color: #1a1f2e; }
+:root[data-theme="dark"] .bg-slate-100 { background-color: #222839; }
+:root[data-theme="dark"] .bg-slate-300 { background-color: #3a4256; }
+:root[data-theme="dark"] .hover\:bg-slate-50:hover, :root[data-theme="dark"] .hover\:bg-slate-100:hover { background-color: #222839; }
 
-.lb-oscuro .text-slate-900 { color: #f1f3f9; }
-.lb-oscuro .text-slate-800 { color: #e6e9f2; }
-.lb-oscuro .text-slate-700 { color: #d3d8e5; }
-.lb-oscuro .text-slate-600 { color: #b6bdd0; }
-.lb-oscuro .text-slate-500 { color: #a3abc0; }
-.lb-oscuro .text-slate-400 { color: #7c859c; }
-.lb-oscuro .hover\:text-slate-800:hover { color: #f1f3f9; }
+:root[data-theme="dark"] .text-slate-900 { color: #eceff8; }
+:root[data-theme="dark"] .text-slate-800 { color: #eceff8; }
+:root[data-theme="dark"] .text-slate-700 { color: #c7cdda; }
+:root[data-theme="dark"] .text-slate-600 { color: #c7cdda; }
+:root[data-theme="dark"] .text-slate-500 { color: #9aa2b6; }
+:root[data-theme="dark"] .text-slate-400 { color: #9aa2b6; }
+:root[data-theme="dark"] .hover\:text-slate-800:hover { color: #eceff8; }
 
-.lb-oscuro .border-slate-200 { border-color: #2c3346; }
-.lb-oscuro .border-slate-300 { border-color: #3a4256; }
-.lb-oscuro .hover\:border-slate-300:hover, .lb-oscuro .hover\:border-slate-400:hover { border-color: #4b546b; }
+:root[data-theme="dark"] .border-slate-200 { border-color: #2a3042; }
+:root[data-theme="dark"] .border-slate-300 { border-color: #3a4256; }
+:root[data-theme="dark"] .hover\:border-slate-300:hover, :root[data-theme="dark"] .hover\:border-slate-400:hover { border-color: #4b546b; }
 
 /* Marca (teal) */
-.lb-oscuro .text-teal-700, .lb-oscuro .text-teal-800 { color: #5eead4; }
-.lb-oscuro .text-teal-900 { color: #99f6e4; }
-.lb-oscuro .bg-teal-50 { background-color: #0f2a28; }
-.lb-oscuro .border-teal-200 { border-color: #1d4d48; }
-.lb-oscuro .border-teal-600 { border-color: #2dd4bf; }
-.lb-oscuro .hover\:text-teal-800:hover { color: #99f6e4; }
-.lb-oscuro .hover\:border-teal-600:hover { border-color: #2dd4bf; }
+:root[data-theme="dark"] .text-teal-700, :root[data-theme="dark"] .text-teal-800 { color: #5eead4; }
+:root[data-theme="dark"] .text-teal-900 { color: #99f6e4; }
+:root[data-theme="dark"] .bg-teal-50 { background-color: #0f2a28; }
+:root[data-theme="dark"] .border-teal-200 { border-color: #1d4d48; }
+:root[data-theme="dark"] .border-teal-600 { border-color: #2dd4bf; }
+:root[data-theme="dark"] .hover\:text-teal-800:hover { color: #99f6e4; }
+:root[data-theme="dark"] .hover\:border-teal-600:hover { border-color: #2dd4bf; }
 
 /* Avisos */
-.lb-oscuro .bg-amber-50 { background-color: #2e2410; }
-.lb-oscuro .bg-amber-100 { background-color: #3a2d10; }
-.lb-oscuro .border-amber-200 { border-color: #4a3a15; }
-.lb-oscuro .text-amber-800, .lb-oscuro .text-amber-900 { color: #f0d9a8; }
-.lb-oscuro .bg-rose-50 { background-color: #3a1720; }
-.lb-oscuro .border-rose-200 { border-color: #5c2533; }
-.lb-oscuro .text-rose-700 { color: #fda4af; }
-.lb-oscuro .hover\:bg-rose-50:hover { background-color: #3a1720; }
-.lb-oscuro .hover\:text-rose-700:hover { color: #fda4af; }
+:root[data-theme="dark"] .bg-amber-50 { background-color: #2e2410; }
+:root[data-theme="dark"] .bg-amber-100 { background-color: #3a2d10; }
+:root[data-theme="dark"] .border-amber-200 { border-color: #4a3a15; }
+:root[data-theme="dark"] .text-amber-800, :root[data-theme="dark"] .text-amber-900 { color: #f0d9a8; }
+:root[data-theme="dark"] .bg-rose-50 { background-color: #3a1720; }
+:root[data-theme="dark"] .border-rose-200 { border-color: #5c2533; }
+:root[data-theme="dark"] .text-rose-700 { color: #fda4af; }
+:root[data-theme="dark"] .hover\:bg-rose-50:hover { background-color: #3a1720; }
+:root[data-theme="dark"] .hover\:text-rose-700:hover { color: #fda4af; }
 
 /* Alternativas y nube: los sólidos (A–D) se quedan; textos y tintes se aclaran */
-.lb-oscuro .text-violet-700 { color: #c4b5fd; }
-.lb-oscuro .text-pink-700 { color: #f9a8d4; }
-.lb-oscuro .text-orange-700 { color: #fdba74; }
-.lb-oscuro .text-sky-700 { color: #7dd3fc; }
-.lb-oscuro .bg-violet-50 { background-color: #251d42; }
-.lb-oscuro .bg-pink-50 { background-color: #3a1830; }
-.lb-oscuro .bg-orange-50 { background-color: #3a2312; }
+:root[data-theme="dark"] .text-violet-700 { color: #c4b5fd; }
+:root[data-theme="dark"] .text-pink-700 { color: #f9a8d4; }
+:root[data-theme="dark"] .text-orange-700 { color: #fdba74; }
+:root[data-theme="dark"] .text-sky-700 { color: #7dd3fc; }
+:root[data-theme="dark"] .bg-violet-50 { background-color: #251d42; }
+:root[data-theme="dark"] .bg-pink-50 { background-color: #3a1830; }
+:root[data-theme="dark"] .bg-orange-50 { background-color: #3a2312; }
 
 /* Campos de formulario: el navegador los pinta blancos por su cuenta */
-.lb-oscuro input, .lb-oscuro textarea, .lb-oscuro select { background-color: #141826; color: #e6e9f2; }
-.lb-oscuro input::placeholder, .lb-oscuro textarea::placeholder { color: #7c859c; }
+:root[data-theme="dark"] input, :root[data-theme="dark"] textarea, :root[data-theme="dark"] select { background-color: #141826; color: #eceff8; }
+:root[data-theme="dark"] input::placeholder, :root[data-theme="dark"] textarea::placeholder { color: #828aa0; }
 
 /* Botón principal desactivado: el gris claro de Tailwind encandila en oscuro */
-.lb-oscuro .disabled\:bg-slate-300:disabled { background-color: #2c3346; color: #7c859c; }
+:root[data-theme="dark"] .disabled\:bg-slate-300:disabled { background-color: #2a3042; color: #9aa2b6; }

@@ -9,7 +9,8 @@
      · MIS MATERIALES: sigue al sistema, con botón.
 
    La preferencia queda en este navegador (es del aparato, no de nadie).
-   El oscuro es una clase en <html> (`lb-oscuro`) y sus colores viven en
+   El oscuro es `data-theme="dark"` en <html>, como en el resto de la suite
+   (así le llegan el foco y los grises de design-tokens), y sus colores viven en
    index.css, en un solo lugar, en vez de repartidos por cada pantalla.
    ========================================================================== */
 import { useEffect, useState } from 'react'
@@ -41,7 +42,7 @@ export function useTema(clave = null, porDefecto = 'auto') {
 
   const oscuro = resolver(modo, sistema)
   useEffect(() => {
-    document.documentElement.classList.toggle('lb-oscuro', oscuro)
+    document.documentElement.setAttribute('data-theme', oscuro ? 'dark' : 'light')
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', oscuro ? '#0f1320' : '#0f766e')
   }, [oscuro])
 
