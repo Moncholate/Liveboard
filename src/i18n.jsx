@@ -98,6 +98,13 @@ export const TEXTOS = {
   sinRespuestas: { es: 'Todavía no hay respuestas.', en: 'No answers yet.' },
 
   // Moderación
+  corregir: { es: 'Corregir', en: 'Correct' },
+  corregirAyuda: { es: 'Enter guarda · Esc cancela', en: 'Enter saves · Esc cancels' },
+  cancelar: { es: 'Cancelar', en: 'Cancel' },
+  guardar: { es: 'Guardar', en: 'Save' },
+  quitarCorreccion: { es: 'Quitar corrección', en: 'Remove correction' },
+  corregida: { es: 'Corregida', en: 'Corrected' },
+  profeCorrigio: { es: 'Tu profe la corrigió', en: 'Your teacher corrected it' },
   sinPalabras: { es: 'Todavía no llegan palabras.', en: 'No words yet.' },
   filtro: { es: 'filtro', en: 'filter' },
   mostrar: { es: 'Mostrar', en: 'Show' },

@@ -326,32 +326,46 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
   const moderable = actividad.tipo === 'nube' || actividad.tipo === 'abierta'
   const n = cuantosRespondieron(respuestas)
   const pendientes = actividad.tipo === 'abierta' ? abiertas(respuestas, moderacion?.abiertas).pendientes.length : 0
-  /* Con fondo, el contenido va en un panel casi opaco (index.css) y el fondo
-     queda como marco: así todo se lee igual sobre cualquier fondo. */
+  /* CON FONDO, CADA COSA LLEVA SU PROPIO PANEL, y no uno solo para todo. Iba un
+     panel casi opaco del tamaño de la pantalla y el fondo quedaba reducido a un
+     marco de 20 px: en una pregunta abierta se veía un cuadrado gigante y un
+     borde de color. Ahora el panel envuelve solo lo que necesita respaldo para
+     leerse (la pregunta, el contador, la nube y los gráficos) y las respuestas
+     abiertas, que ya son tarjetas opacas, van directo sobre el fondo. */
   const f = fondoPorId(fondo)
+  const conFondo = Boolean(f.css)
+  const panel = conFondo ? 'panel-proyector rounded-3xl shadow-xl' : ''
+  const sinPanel = actividad.tipo === 'abierta' && estado.resultados
+    && abiertas(respuestas, moderacion?.abiertas).aprobadas.length > 0
 
   return (
     <main className="flex-1 flex min-h-0">
       <div className="flex-1 flex flex-col min-w-0">
-        <div className={`flex-1 flex flex-col min-h-0 ${f.css ? 'p-5' : ''}`} style={f.css ? { background: f.css } : undefined}>
-        <div className={`flex-1 flex flex-col min-h-0 ${f.css ? 'panel-proyector rounded-3xl shadow-xl' : ''}`}>
-        <div className="px-8 pt-6 flex items-center gap-3 text-slate-500">
-          <span className="text-sm font-bold uppercase tracking-wider">{t(`tipo_${actividad.tipo}`)} · {t('deTotal', idx + 1, total)}</span>
-          <span className="flex-1" />
-          <JoinCorner pin={pin} />
+        <div className={`flex-1 flex flex-col min-h-0 ${conFondo ? 'p-5 gap-5' : ''}`} style={conFondo ? { background: f.css } : undefined}>
+        <div className={`${panel} ${conFondo ? 'pb-6' : ''}`}>
+          <div className="px-8 pt-6 flex items-center gap-3 text-slate-500">
+            <span className="text-sm font-bold uppercase tracking-wider">{t(`tipo_${actividad.tipo}`)} · {t('deTotal', idx + 1, total)}</span>
+            <span className="flex-1" />
+            <JoinCorner pin={pin} />
+          </div>
+          <h1 className="px-8 pt-2 text-5xl font-black text-slate-900 leading-tight">{actividad.pregunta}</h1>
         </div>
-        <h1 className="px-8 pt-2 text-5xl font-black text-slate-900 leading-tight">{actividad.pregunta}</h1>
 
-        <div className="flex-1 px-8 py-8 flex items-center justify-center min-h-0 overflow-auto">
+        <div className={`flex-1 flex items-center justify-center min-h-0 overflow-auto ${conFondo ? 'px-3 py-2' : 'px-8 py-8'}`}>
           {estado.resultados ? (
-            <Resultados actividad={actividad} respuestas={respuestas} moderacion={moderacion} />
+            sinPanel
+              ? <Resultados actividad={actividad} respuestas={respuestas} moderacion={moderacion} sobreFondo={conFondo} />
+              : (
+                <div className={`${panel} ${conFondo ? `p-8 ${actividad.tipo === 'nube' ? 'max-w-full' : 'w-full max-w-5xl'}` : 'w-full flex justify-center'}`}>
+                  <Resultados actividad={actividad} respuestas={respuestas} moderacion={moderacion} />
+                </div>
+              )
           ) : (
-            <div className="text-center">
+            <div className={`text-center ${conFondo ? `${panel} px-14 py-8` : ''}`}>
               <p className="text-8xl font-black text-slate-900 tabular-nums">{n}</p>
               <p className="text-2xl text-slate-500 mt-2">{t('respuestaN', n)}</p>
             </div>
           )}
-        </div>
         </div>
         </div>
 
@@ -389,19 +403,20 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
           </p>
           <Moderacion actividad={actividad} respuestas={respuestas} moderacion={moderacion} participantes={participantes}
             onPalabra={(clave, d) => acciones.moderarPalabra(aid, clave, d)}
-            onAbierta={(pid, d) => acciones.decidirAbierta(aid, pid, d)} />
+            onAbierta={(pid, d) => acciones.decidirAbierta(aid, pid, d)}
+            onCorregir={(pid, texto, de) => acciones.corregirAbierta(aid, pid, texto, de)} />
         </aside>
       )}
     </main>
   )
 }
 
-function Resultados({ actividad, respuestas, moderacion }) {
+function Resultados({ actividad, respuestas, moderacion, sobreFondo = false }) {
   switch (actividad.tipo) {
     case 'nube': return <Nube respuestas={respuestas} moderacion={moderacion?.palabras} />
-    case 'encuesta': return <div className="w-full max-w-4xl"><Encuesta actividad={actividad} respuestas={respuestas} /></div>
-    case 'escala': return <div className="w-full max-w-4xl"><Escala respuestas={respuestas} /></div>
-    case 'abierta': return <Abiertas aprobadas={abiertas(respuestas, moderacion?.abiertas).aprobadas} />
+    case 'encuesta': return <div className="w-full max-w-4xl mx-auto"><Encuesta actividad={actividad} respuestas={respuestas} /></div>
+    case 'escala': return <div className="w-full max-w-4xl mx-auto"><Escala respuestas={respuestas} /></div>
+    case 'abierta': return <Abiertas aprobadas={abiertas(respuestas, moderacion?.abiertas, {}, moderacion?.correcciones).aprobadas} sobreFondo={sobreFondo} />
     default: return null
   }
 }

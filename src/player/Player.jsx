@@ -16,7 +16,8 @@ import { useEffect, useState } from 'react'
 import { useStore, useValue } from '../net/hooks.js'
 import { Button, Center, Logo } from '../ui.jsx'
 import { ProveedorIdioma, SelectorIdioma, idiomaDelNavegador, traducir, useT, valido } from '../i18n.jsx'
-import { ALTERNATIVAS, LIMITES, idAlAzar, limpiarAbierta, nombreValido, palabrasDe } from '../live/logic.js'
+import { ALTERNATIVAS, LIMITES, correccionVigente, idAlAzar, limpiarAbierta, nombreValido, palabrasDe } from '../live/logic.js'
+import { Cambios } from '../live/Cambios.jsx'
 import { comoLista, raiz } from '../live/sala.js'
 import { useTema } from '../tema.jsx'
 
@@ -143,6 +144,7 @@ function Responder({ store, base, pid, actividad, abierta }) {
   const aid = actividad.id
   const mia = useValue(store, `${base}/respuestas/${aid}/${pid}`)
   const decision = useValue(store, actividad.tipo === 'abierta' ? `${base}/moderacion/${aid}/abiertas/${pid}` : null)
+  const correccion = useValue(store, actividad.tipo === 'abierta' ? `${base}/moderacion/${aid}/correcciones/${pid}` : null)
   const [editando, setEditando] = useState(false)
 
   if (mia === undefined) return <Center>{t('cargando')}</Center>
@@ -157,7 +159,7 @@ function Responder({ store, base, pid, actividad, abierta }) {
       <h1 className="text-2xl font-black text-slate-900 leading-snug">{actividad.pregunta}</h1>
 
       {yaRespondio ? (
-        <Enviada actividad={actividad} mia={mia} decision={decision} abierta={abierta} onCambiar={() => setEditando(true)} />
+        <Enviada actividad={actividad} mia={mia} decision={decision} correccion={correccion} abierta={abierta} onCambiar={() => setEditando(true)} />
       ) : !abierta ? (
         <p className="rounded-2xl bg-slate-100 p-4 text-center font-semibold text-slate-600">{t('respuestasCerradas')}</p>
       ) : actividad.tipo === 'nube' ? <FormNube inicial={mia?.palabras} onEnviar={enviar} />
@@ -169,12 +171,13 @@ function Responder({ store, base, pid, actividad, abierta }) {
 }
 
 /* El veredicto primero y grande: que no quede duda de que se envió. */
-function Enviada({ actividad, mia, decision, abierta, onCambiar }) {
+function Enviada({ actividad, mia, decision, correccion, abierta, onCambiar }) {
   const t = useT()
   const lo = actividad.tipo === 'nube' ? (mia.palabras || []).join(' · ')
     : actividad.tipo === 'encuesta' ? `${ALTERNATIVAS[mia.opcion]?.letra}. ${actividad.alternativas?.[mia.opcion] ?? ''}`
     : actividad.tipo === 'escala' ? `${mia.valor} · ${t('escala')[mia.valor - 1] ?? ''}`
     : mia.texto
+  const corregida = actividad.tipo === 'abierta' ? correccionVigente(correccion, limpiarAbierta(mia.texto)) : null
   return (
     <div className="flex flex-col gap-3">
       <div className="rounded-2xl bg-teal-700 text-white p-5 text-center">
@@ -183,7 +186,12 @@ function Enviada({ actividad, mia, decision, abierta, onCambiar }) {
       </div>
       <div className="rounded-2xl bg-white border border-slate-200 p-4">
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('tuRespuesta')}</p>
-        <p className="mt-1 text-lg font-semibold text-slate-900 break-words">{lo}</p>
+        {/* LA CORRECCIÓN DEL DOCENTE, solo aquí: es privada. El proyector muestra
+            la versión limpia; lo que cambió lo ve únicamente quien la escribió. */}
+        {corregida
+          ? <Cambios antes={limpiarAbierta(mia.texto)} despues={corregida} className="mt-1 text-lg font-semibold text-slate-900" />
+          : <p className="mt-1 text-lg font-semibold text-slate-900 break-words">{lo}</p>}
+        {corregida && <p className="mt-2 text-sm font-bold text-teal-800">✎ {t('profeCorrigio')}</p>}
         {actividad.tipo === 'abierta' && (
           <p className="mt-2 text-sm text-slate-500">{decision === true ? t('enPantallaSinNombre') : t('profeRevisa')}</p>
         )}

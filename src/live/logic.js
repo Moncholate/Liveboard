@@ -171,24 +171,81 @@ export const limpiarAbierta = (s) => String(s == null ? '' : s)
  * el orden en que llegaron. `decisiones` = { pid: true (aprobada) | false
  * (descartada) }; sin decisión, pendiente. El nombre va solo para el docente en
  * su celular: el proyector no lo muestra nunca.
+ *
+ * `correcciones` = { pid: { texto, de } }: lo que el docente corrigió. `texto`
+ * pasa a ser lo que se muestra y `original` guarda lo que escribió el
+ * estudiante. Solo vale mientras el estudiante no haya cambiado su respuesta
+ * (`de` tiene que ser igual a lo que hay ahora): corregir un texto que ya no
+ * existe pisaría lo nuevo con algo viejo.
  */
-export const abiertas = (respuestas, decisiones = {}, participantes = {}) => {
+export const abiertas = (respuestas, decisiones = {}, participantes = {}, correcciones = {}) => {
   const lista = Object.entries(respuestas || {})
-    .map(([pid, r]) => ({
-      pid,
-      texto: limpiarAbierta(r?.texto),
-      at: typeof r?.at === 'number' ? r.at : 0,
-      nombre: participantes[pid]?.nombre || '',
-      decision: decisiones[pid] === true ? true : decisiones[pid] === false ? false : null,
-      groseria: esGroseria(r?.texto),
-    }))
-    .filter(r => r.texto)
+    .map(([pid, r]) => {
+      const original = limpiarAbierta(r?.texto)
+      const c = correccionVigente(correcciones?.[pid], original)
+      return {
+        pid,
+        texto: c || original,
+        original,
+        corregida: Boolean(c),
+        at: typeof r?.at === 'number' ? r.at : 0,
+        nombre: participantes?.[pid]?.nombre || '',
+        decision: decisiones?.[pid] === true ? true : decisiones?.[pid] === false ? false : null,
+        groseria: esGroseria(r?.texto),
+      }
+    })
+    .filter(r => r.original)
     .sort((a, b) => a.at - b.at || a.pid.localeCompare(b.pid))
   return {
     pendientes: lista.filter(r => r.decision === null),
     aprobadas: lista.filter(r => r.decision === true),
     descartadas: lista.filter(r => r.decision === false),
   }
+}
+
+/* ── Corregir una respuesta abierta ────────────────────────────────────── */
+
+/** La corrección guardada, si sigue valiendo para este texto; si no, null. */
+export const correccionVigente = (c, original) => {
+  if (!c || typeof c.texto !== 'string') return null
+  const texto = limpiarAbierta(c.texto)
+  if (!texto || limpiarAbierta(c.de) !== original || texto === original) return null
+  return texto
+}
+
+/* Palabras, signos y espacios por separado: así «yesterday» → «yesterday.»
+   marca solo el punto, y «go» → «went» no arrastra la frase entera. */
+const trozos = (s) => String(s || '').match(/\s+|[\p{L}\p{N}'’]+|[^\s\p{L}\p{N}]/gu) || []
+
+/**
+ * Qué cambió entre lo que escribió el estudiante y la corrección, trozo a
+ * trozo (subsecuencia común más larga): [{ tipo: 'igual' | 'quitado' |
+ * 'agregado', texto }]. Es lo que ve el estudiante en su celular.
+ * Los textos miden a lo más 140 caracteres, así que la tabla es chica.
+ */
+export const diferencias = (antes, despues) => {
+  const a = trozos(antes), b = trozos(despues)
+  const L = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0))
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) {
+      L[i][j] = a[i] === b[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1])
+    }
+  }
+  const out = []
+  const poner = (tipo, texto) => {
+    const ultimo = out[out.length - 1]
+    if (ultimo && ultimo.tipo === tipo) ultimo.texto += texto
+    else out.push({ tipo, texto })
+  }
+  let i = 0, j = 0
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { poner('igual', a[i]); i++; j++ }
+    else if (L[i + 1][j] >= L[i][j + 1]) poner('quitado', a[i++])
+    else poner('agregado', b[j++])
+  }
+  while (i < a.length) poner('quitado', a[i++])
+  while (j < b.length) poner('agregado', b[j++])
+  return out
 }
 
 /** Cuántos respondieron la actividad. */

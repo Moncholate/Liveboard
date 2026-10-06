@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  abiertas, actividadNueva, claveDePalabra, conteoEncuesta, estadisticaEscala, limpiarActividad,
+  abiertas, actividadNueva, claveDePalabra, conteoEncuesta, correccionVigente, diferencias, estadisticaEscala, limpiarActividad,
   limpiarPalabra, nombreValido, nube, palabrasDe, pinAlAzar, problemaDe, tamanoEnNube,
 } from './logic.js'
 import { esGroseria } from './groserias.js'
@@ -111,6 +111,46 @@ describe('respuestas abiertas', () => {
   it('marca las que traen groserías y lleva el nombre solo como dato', () => {
     const { pendientes } = abiertas(r, {}, quien)
     expect(pendientes[0]).toMatchObject({ pid: 'p2', groseria: true, nombre: 'Beto' })
+  })
+})
+
+describe('corregir una respuesta abierta', () => {
+  const r = { p1: { texto: 'I go to the park yesterday', at: 1 } }
+
+  it('muestra la corrección y guarda lo que escribió el estudiante', () => {
+    const c = { p1: { texto: 'I went to the park yesterday.', de: 'I go to the park yesterday' } }
+    const [x] = abiertas(r, { p1: true }, {}, c).aprobadas
+    expect(x).toMatchObject({ texto: 'I went to the park yesterday.', original: 'I go to the park yesterday', corregida: true })
+  })
+
+  it('caduca si el estudiante cambió su respuesta después de la corrección', () => {
+    const c = { p1: { texto: 'I went to the park.', de: 'I go to the park' } }
+    const [x] = abiertas(r, {}, {}, c).pendientes
+    expect(x).toMatchObject({ texto: 'I go to the park yesterday', corregida: false })
+  })
+
+  it('una corrección vacía o igual al original no cuenta', () => {
+    expect(correccionVigente({ texto: '  ', de: 'hola' }, 'hola')).toBeNull()
+    expect(correccionVigente({ texto: 'hola', de: 'hola' }, 'hola')).toBeNull()
+    expect(correccionVigente(null, 'hola')).toBeNull()
+  })
+
+  it('marca solo lo que cambió, palabra por palabra y signo por signo', () => {
+    expect(diferencias('I go to the park yesterday', 'I went to the park yesterday.')).toEqual([
+      { tipo: 'igual', texto: 'I ' },
+      { tipo: 'quitado', texto: 'go' },
+      { tipo: 'agregado', texto: 'went' },
+      { tipo: 'igual', texto: ' to the park yesterday' },
+      { tipo: 'agregado', texto: '.' },
+    ])
+  })
+
+  it('juntando los trozos sale el original (sin lo agregado) o la corrección (sin lo quitado)', () => {
+    const a = 'She dont like apples, she like bananas'
+    const b = "She doesn't like apples; she likes bananas."
+    const d = diferencias(a, b)
+    expect(d.filter(x => x.tipo !== 'agregado').map(x => x.texto).join('')).toBe(a)
+    expect(d.filter(x => x.tipo !== 'quitado').map(x => x.texto).join('')).toBe(b)
   })
 })
 

@@ -94,14 +94,23 @@ export function Escala({ respuestas, chico = false }) {
 }
 
 /* Solo las aprobadas, y sin nombres. */
-export function Abiertas({ aprobadas, chico = false }) {
+/* `sobreFondo`: las tarjetas van directo sobre el fondo del proyector, sin
+   panel, así que llevan sombra para despegarse de él.
+   Una respuesta CORREGIDA se ve ya corregida, limpia, con un ✎ discreto: qué
+   cambió lo ve solo su autor en el celular. Frente al curso nadie queda
+   expuesto por un error. */
+export function Abiertas({ aprobadas, chico = false, sobreFondo = false }) {
   const t = useT()
   if (!aprobadas.length) return <Vacio chico={chico}>{t('vacioAbiertas')}</Vacio>
   return (
     <div className={`w-full grid ${chico ? 'gap-2' : 'gap-4 sm:grid-cols-2 xl:grid-cols-3'}`}>
       {aprobadas.map(r => (
-        <div key={r.pid} className={`rounded-2xl bg-white border border-slate-200 font-semibold text-slate-800 animate-pop ${chico ? 'p-2 text-sm' : 'p-5 text-2xl'}`}>
+        <div key={r.pid} className={`relative rounded-2xl bg-white border border-slate-200 font-semibold text-slate-800 animate-pop ${chico ? 'p-2 text-sm' : 'p-5 text-2xl'} ${sobreFondo ? 'shadow-lg' : ''}`}>
           {r.texto}
+          {r.corregida && (
+            <span title={t('corregida')} aria-label={t('corregida')}
+              className={`absolute text-slate-400 font-normal ${chico ? 'top-1 right-1.5 text-xs' : 'top-2 right-3 text-base'}`}>✎</span>
+          )}
         </div>
       ))}
     </div>

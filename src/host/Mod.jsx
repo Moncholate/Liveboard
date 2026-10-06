@@ -108,7 +108,8 @@ function EnVivo({ store, base, idx, total, actividad, estado, participantes, acc
           <h2 className="font-black text-slate-900 mb-2">{t('moderar')}</h2>
           <Moderacion actividad={actividad} respuestas={respuestas} moderacion={moderacion} participantes={participantes} conNombres
             onPalabra={(clave, d) => acciones.moderarPalabra(aid, clave, d)}
-            onAbierta={(pid, d) => acciones.decidirAbierta(aid, pid, d)} />
+            onAbierta={(pid, d) => acciones.decidirAbierta(aid, pid, d)}
+            onCorregir={(pid, texto, de) => acciones.corregirAbierta(aid, pid, texto, de)} />
         </section>
       ) : (
         <section className="rounded-2xl bg-white border border-slate-200 p-4">

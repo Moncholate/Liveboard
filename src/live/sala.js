@@ -12,7 +12,10 @@
      online        { pid: true | false }
      respuestas    { aid: { pid: { palabras | opcion | valor | texto, at } } }
      moderacion    { aid: { palabras: { clave: 'ocultar' | 'mostrar' },
-                            abiertas: { pid: true | false } } }
+                            abiertas: { pid: true | false },
+                            correcciones: { pid: { texto, de } } } }
+                   (la corrección del docente; `de` = el texto que corrigió,
+                   para que caduque sola si el estudiante cambia el suyo)
 
    Las respuestas van bajo el id de la actividad (aid) y no bajo su posición:
    si el docente reordena o borra una, cada respuesta sigue con su pregunta.
@@ -21,7 +24,7 @@
    el proyector y el celular con que se modera. Dos copias de «siguiente»
    terminan haciendo cosas distintas.
    ========================================================================== */
-import { limpiarActividad } from './logic.js'
+import { limpiarAbierta, limpiarActividad } from './logic.js'
 
 export const raiz = (pin) => `boards/${pin}`
 
@@ -38,6 +41,12 @@ export const accionesDeSala = (store, pin) => {
     cambiarIdioma: (idioma) => store.set(`${base}/idioma`, idioma === 'en' ? 'en' : 'es'),
     moderarPalabra: (aid, clave, decision) => store.set(`${base}/moderacion/${aid}/palabras/${clave}`, decision),
     decidirAbierta: (aid, pid, decision) => store.set(`${base}/moderacion/${aid}/abiertas/${pid}`, decision),
+    /* Sin texto, se quita la corrección y vuelve a verse el original. */
+    corregirAbierta: (aid, pid, texto, de) => {
+      const ruta = `${base}/moderacion/${aid}/correcciones/${pid}`
+      const limpio = limpiarAbierta(texto)
+      return limpio && limpio !== limpiarAbierta(de) ? store.set(ruta, { texto: limpio, de: limpiarAbierta(de) }) : store.remove(ruta)
+    },
     cerrarSala: () => store.remove(base),
   }
 }
