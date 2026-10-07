@@ -4,9 +4,11 @@
    boards/{pin}/
      meta          { creada, clave }   clave = la del enlace para moderar
      idioma        'es' | 'en'   lo siguen el proyector y todos los celulares
-     estado        { idx, abierta, resultados }
+     estado        { idx, abierta, resultados, pizarra? }
                    idx null = preparando (sala de espera); si no, la actividad
-                   que se está mostrando
+                   que se está mostrando. pizarra = el proyector muestra el
+                   pizarrón encima (pizarra.js); cambiar de actividad lo aparta
+     pizarra       lo que escribe el docente en su tablet (pizarra.js)
      actividades   [ { id, tipo, pregunta, alternativas? } ]
      participantes { pid: { nombre, at } }
      online        { pid: true | false }
@@ -42,6 +44,7 @@ export const accionesDeSala = (store, pin) => {
     mostrar,
     volverAPreparar: () => store.set(`${base}/estado`, { idx: null, abierta: false, resultados: false }),
     abrir: (abierta) => store.update(`${base}/estado`, { abierta }),
+    pizarra: (si) => store.update(`${base}/estado`, { pizarra: si ? true : null }),
     resultados: (resultados) => store.update(`${base}/estado`, { resultados }),
     guardarActividades: (lista) => store.set(`${base}/actividades`, lista.map(limpiarActividad)),
     cambiarIdioma: (idioma) => store.set(`${base}/idioma`, idioma === 'en' ? 'en' : 'es'),

@@ -45,6 +45,9 @@
         },
         "moderacion": {
           ".write": true
+        },
+        "pizarra": {
+          ".write": true
         }
       }
     },

@@ -33,6 +33,8 @@ import { Cuenta, iniciarSesion } from './Cuenta.jsx'
 import { BotonTema, useTema } from '../tema.jsx'
 import { fondoPorId, fondoValido } from '../live/fondos.js'
 import { SelectorFondo } from '../live/SelectorFondo.jsx'
+import { Lienzo } from '../live/Lienzo.jsx'
+import { enCursoVisible, rutaPizarra, trazosEnOrden, vistaValida } from '../live/pizarra.js'
 
 const PIN_KEY = 'liveboard-host-pin'
 const ULTIMAS_KEY = 'liveboard-ultimas'
@@ -122,9 +124,13 @@ function Sala({ store, pin, onCerrada }) {
 
   return (
     <ProveedorIdioma value={idioma}>
-      <div className="min-h-screen flex flex-col">
-        <Encabezado store={store} user={user} pin={pin} meta={meta} online={online} tema={tema} onCerrar={cerrar} />
-        {actual
+      {/* Con la pizarra, la pantalla justa: el papel ocupa lo que queda entre
+          el encabezado y los botones, sin que nada se salga. */}
+      <div className={`${estado?.pizarra ? 'h-[100dvh]' : 'min-h-screen'} flex flex-col`}>
+        <Encabezado store={store} user={user} pin={pin} meta={meta} online={online} tema={tema} onCerrar={cerrar} acciones={acciones} />
+        {estado?.pizarra
+          ? <PizarraProyector store={store} pin={pin} acciones={acciones} />
+          : actual
           ? <Presentar store={store} base={base} pin={pin} idx={idx} actividad={actual} total={actividades.length}
               estado={estado} participantes={participantes} acciones={acciones} fondo={fondo} />
           : <Preparar store={store} user={user} pin={pin} online={online} actividades={actividades} acciones={acciones}
@@ -134,7 +140,7 @@ function Sala({ store, pin, onCerrada }) {
   )
 }
 
-function Encabezado({ store, user, pin, meta, online, tema, onCerrar }) {
+function Encabezado({ store, user, pin, meta, online, tema, onCerrar, acciones }) {
   const t = useT()
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3 bg-white border-b border-slate-200">
@@ -145,6 +151,7 @@ function Encabezado({ store, user, pin, meta, online, tema, onCerrar }) {
       <span className="text-slate-500">{t('pin')} <b className="text-slate-900 tracking-widest">{pin}</b></span>
       <BotonTema tema={tema} etiqueta={tema.oscuro ? t('usarClaro') : t('usarOscuro')} />
       <Cuenta store={store} user={user} />
+      <BotonPizarra pin={pin} clave={meta?.clave} acciones={acciones} />
       <BotonCelular pin={pin} clave={meta?.clave} />
       <Button variant="danger" className="!px-3 !py-1.5 text-sm" onClick={onCerrar}>{t('cerrarSala')}</Button>
     </header>
@@ -488,5 +495,62 @@ function BotonCelular({ pin, clave }) {
         </div>
       )}
     </>
+  )
+}
+
+/* ── Pizarra ─────────────────────────────────────────────────────────────── */
+
+/* El QR para la tablet, como el del celular: lleva la clave de la sala. */
+function BotonPizarra({ pin, clave, acciones }) {
+  const t = useT()
+  const [abierto, setAbierto] = useState(false)
+  const url = `${location.origin}${location.pathname}#/pizarra?pin=${pin}&clave=${clave}`
+  const qr = useQr(abierto && clave ? url : null, 480)
+  return (
+    <>
+      <Button variant="ghost" className="!px-3 !py-1.5 text-sm" onClick={() => setAbierto(true)} disabled={!clave}>{t('pizarra')}</Button>
+      {abierto && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 grid place-items-center p-4" onClick={() => setAbierto(false)}>
+          <div className="rounded-3xl bg-white p-6 max-w-sm text-center" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-black text-slate-900">{t('pizarraEnTablet')}</h2>
+            <p className="text-sm text-slate-600 mt-1">{t('pizarraEnTabletAyuda')}</p>
+            {qr && <img src={qr} alt={t('qrPizarra')} className="w-64 h-64 mx-auto my-4" />}
+            <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2">
+              {t('avisoQrPizarra')}
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Button variant="ghost" onClick={() => setAbierto(false)}>{t('listo')}</Button>
+              <Button onClick={() => { acciones.pizarra(true); setAbierto(false) }}>{t('mostrarPizarra')}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+/* Lo que se escribe en la tablet, en vivo y en grande. Desde aquí solo se
+   cambia de página y se vuelve a la actividad: escribir es cosa de la tablet. */
+function PizarraProyector({ store, pin, acciones }) {
+  const t = useT()
+  const ruta = rutaPizarra(pin)
+  const vista = vistaValida(useValue(store, `${ruta}/vista`))
+  const trazosRaw = useValue(store, `${ruta}/paginas/${vista.pagina}/trazos`)
+  const enCursoRaw = useValue(store, `${ruta}/enCurso`)
+  const trazos = useMemo(() => trazosEnOrden(trazosRaw), [trazosRaw])
+  const enCurso = useMemo(() => enCursoVisible(enCursoRaw, vista.pagina, trazosRaw), [enCursoRaw, vista.pagina, trazosRaw])
+  const irA = (pagina) => store.set(`${ruta}/vista`, { ...vista, pagina })
+
+  return (
+    <main className="flex-1 flex flex-col min-h-0">
+      <Lienzo trazos={trazos} enCurso={enCurso} fondo={vista.fondo} className="flex-1 p-4" />
+      <footer className="flex items-center gap-2 px-6 py-3 bg-white border-t border-slate-200">
+        <Button variant="ghost" onClick={() => acciones.pizarra(false)}>{t('volverDePizarra')}</Button>
+        <span className="flex-1" />
+        <Button variant="ghost" onClick={() => irA(vista.pagina - 1)} disabled={vista.pagina === 0} aria-label={t('paginaAnterior')}>‹</Button>
+        <span className="font-bold text-slate-700 tabular-nums">{t('paginaDe', vista.pagina + 1, vista.paginas)}</span>
+        <Button variant="ghost" onClick={() => irA(vista.pagina + 1)} disabled={vista.pagina >= vista.paginas - 1} aria-label={t('paginaSiguiente')}>›</Button>
+      </footer>
+    </main>
   )
 }
