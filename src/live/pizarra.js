@@ -88,6 +88,15 @@ export const unirPartes = (partes) => Object.keys(partes || {})
 export const botonDeBorrar = (e) => e?.pointerType === 'pen'
   && (((e.buttons ?? 0) & (2 | 32)) !== 0 || e.button === 2 || e.button === 5)
 
+/**
+ * El botón como lo avisa el S Pen en la Tab S9 con Edge (visto en #/lapiz
+ * el 7-oct-2026): ningún botón 2, sino un movimiento del lápiz «con clic»
+ * (buttons 1) y presión cero, sin haber apoyado la punta. Solo vale cuando
+ * no hay un trazo en curso: a mitad de un trazo normal, buttons es 1 igual.
+ */
+export const botonEnElAire = (e) => e?.type === 'pointermove' && e.pointerType === 'pen'
+  && ((e.buttons ?? 0) & 1) !== 0 && e.pressure === 0
+
 /* ── Trazos ────────────────────────────────────────────────────────────── */
 
 /** Un id que se ordena por hora: así «deshacer» sabe cuál fue el último. */

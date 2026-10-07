@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ALTO, ANCHO, COLORES, GROSOR_BORRADOR, MAX_PAGINAS, botonDeBorrar, codificar, decodificar, enCursoVisible, idDeTrazo, lejos,
+  ALTO, ANCHO, COLORES, GROSOR_BORRADOR, MAX_PAGINAS, botonDeBorrar, botonEnElAire, codificar, decodificar, enCursoVisible, idDeTrazo, lejos,
   trazosEnOrden, ultimoTrazo, unirPartes, vistaValida,
 } from './pizarra.js'
 import { TEXTOS } from '../i18n.jsx'
@@ -34,6 +34,14 @@ describe('botón del lápiz', () => {
     expect(botonDeBorrar({ pointerType: 'pen', buttons: 3, button: 0 })).toBe(true)
     expect(botonDeBorrar({ pointerType: 'pen', buttons: 1, button: 2 })).toBe(true)
     expect(botonDeBorrar({ pointerType: 'pen', buttons: 32, button: 5 })).toBe(true)
+  })
+
+  it('el S Pen de la Tab S9: moverse «con clic» y sin presión es el botón', () => {
+    expect(botonEnElAire({ type: 'pointermove', pointerType: 'pen', buttons: 1, pressure: 0 })).toBe(true)
+    expect(botonEnElAire({ type: 'pointermove', pointerType: 'pen', buttons: 1, pressure: 0.2 })).toBe(false)
+    expect(botonEnElAire({ type: 'pointermove', pointerType: 'pen', buttons: 0, pressure: 0 })).toBe(false)
+    expect(botonEnElAire({ type: 'pointermove', pointerType: 'mouse', buttons: 1, pressure: 0 })).toBe(false)
+    expect(botonEnElAire({ type: 'pointerup', pointerType: 'pen', buttons: 1, pressure: 0 })).toBe(false)
   })
 
   it('sin botón escribe, y el botón derecho del mouse o un dedo no borran', () => {

@@ -22,7 +22,7 @@ import { ProveedorIdioma, traducir, useT, valido } from '../i18n.jsx'
 import { raiz } from '../live/sala.js'
 import {
   ALTO, ANCHO, COLORES, FONDOS_PIZARRA, GROSORES, GROSOR_BORRADOR, MAX_PAGINAS,
-  botonDeBorrar, codificar, idDeTrazo, lejos, rutaPizarra, trazosEnOrden, ultimoTrazo, vistaValida,
+  botonDeBorrar, botonEnElAire, codificar, idDeTrazo, lejos, rutaPizarra, trazosEnOrden, ultimoTrazo, vistaValida,
 } from '../live/pizarra.js'
 import { Lienzo } from '../live/Lienzo.jsx'
 import { useTema } from '../tema.jsx'
@@ -121,8 +121,20 @@ function Tablero({ store, pin }) {
   }
   const mover = (e) => {
     const tr = trazo.current
-    if (!tr || e.pointerId !== tr.pointerId) return
-    if (!borrador && e.pointerType === 'pen' && botonDeBorrar(e) !== Boolean(tr.datos.b)) {
+    /* El S Pen de la Tab S9 en Edge (y quizá en otros) no avisa el botón como
+       botón: con el botón apretado el lápiz se mueve «con clic» pero sin
+       presión y sin apoyar la punta. Eso borra por donde pasa, hasta que se
+       suelta el botón o se levanta el lápiz. */
+    if (!tr) {
+      if (botonEnElAire(e)) {
+        empezar(punto(e), e.pointerId, true)
+        trazo.current.enElAire = true
+      }
+      return
+    }
+    if (e.pointerId !== tr.pointerId) return
+    if (tr.enElAire && !botonEnElAire(e)) { subir(e); return }
+    if (!tr.enElAire && !borrador && e.pointerType === 'pen' && botonDeBorrar(e) !== Boolean(tr.datos.b)) {
       const p = punto(e)
       tr.puntos.push(p)
       terminar(tr)
@@ -204,6 +216,7 @@ function Tablero({ store, pin }) {
 
       <Lienzo trazos={trazos} enCurso={enCurso} fondo={vista.fondo} papelRef={papel} className="flex-1 p-3"
         onPointerDown={bajar} onPointerMove={mover} onPointerUp={subir} onPointerCancel={subir}
+        onPointerLeave={(e) => { if (trazo.current?.enElAire) subir(e) }}
         onContextMenu={(e) => e.preventDefault()} />
     </div>
   )

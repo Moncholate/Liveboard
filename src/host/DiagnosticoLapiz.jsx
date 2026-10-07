@@ -9,7 +9,7 @@
    No guarda ni envía nada: solo lo muestra.
    ========================================================================== */
 import { useEffect, useRef, useState } from 'react'
-import { botonDeBorrar } from '../live/pizarra.js'
+import { botonDeBorrar, botonEnElAire } from '../live/pizarra.js'
 
 const MAX = 14
 
@@ -23,10 +23,10 @@ export default function DiagnosticoLapiz() {
     const anotar = (texto) => setLog(l => [texto, ...l].slice(0, MAX))
     const puntero = (e) => {
       const linea = `${e.type} · tipo=${e.pointerType} · button=${e.button} · buttons=${e.buttons}`
-        + ` · presión=${e.pressure?.toFixed(2)} · borra=${botonDeBorrar(e) ? 'SÍ' : 'no'}`
+        + ` · presión=${e.pressure?.toFixed(2)} · botón=${botonDeBorrar(e) || botonEnElAire(e) ? 'SÍ' : 'no'}`
       /* Los movimientos llegan por cientos: se anota uno solo si cambió algo. */
       if (e.type === 'pointermove') {
-        const clave = `${e.pointerType}${e.button}${e.buttons}`
+        const clave = `${e.pointerType}${e.button}${e.buttons}${e.pressure === 0}`
         if (clave === ultimoMov.current) return
         ultimoMov.current = clave
       }
