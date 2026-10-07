@@ -7,9 +7,10 @@
    LA PALMA NO RAYA: apenas se usa el lápiz, los toques con el dedo dejan de
    dibujar. Antes de usar el lápiz, el dedo sí dibuja (por si no hay lápiz).
 
-   EL BOTÓN DEL S PEN BORRA: apoyar el lápiz con el botón lateral apretado
-   hace un trazo de borrador, sin tocar la barra. Al soltar el botón se
-   vuelve al lápiz que estaba (pizarra.js, botonDeBorrar).
+   EL BOTÓN DEL S PEN BORRA: con el botón lateral apretado el trazo es de
+   borrador, sin tocar la barra, y al soltarlo se vuelve al lápiz que estaba.
+   Vale apretarlo antes de apoyar la punta o a mitad del trazo (pizarra.js,
+   botonDeBorrar). Si una tablet lo avisa distinto, #/lapiz muestra qué manda.
 
    El trazo se dibuja aquí al tiro, sin esperar a la base: la tablet no puede
    sentirse lenta. Al proyector le llega por partes cada 80 ms (pizarra.js).
@@ -89,10 +90,25 @@ function Tablero({ store, pin }) {
     return () => clearInterval(id)
   }, [])
 
-  /* Lo que lleva el trazo se decide al apoyar el lápiz y no cambia hasta
-     levantarlo: con el botón del S Pen apretado, ese trazo borra, aunque el
-     botón se suelte a mitad de camino. */
+  /* El botón del S Pen manda: apretarlo o soltarlo A MITAD DE UN TRAZO lo
+     corta ahí y sigue con otro, de borrador o de lápiz. Así da lo mismo si
+     el botón se aprieta antes de apoyar la punta o después. */
   const datosTrazo = (borra) => (borra ? { c: color, g: GROSOR_BORRADOR, b: true } : { c: color, g: grosor })
+
+  const empezar = (p, pointerId, borra) => {
+    const datos = datosTrazo(borrador || borra)
+    trazo.current = { id: idDeTrazo(), pg: vista.pagina, datos, puntos: [p], enviados: 1, parte: 1, pointerId }
+    store.set(`${ruta}/enCurso`, { id: trazo.current.id, pg: vista.pagina, ...datos, partes: { 0: codificar([p]) } })
+    pintar()
+  }
+  const terminar = (tr) => {
+    trazo.current = null
+    /* Se borra el «en curso» solo si no empezó otro trazo mientras tanto:
+       escribiendo rápido, borraría el siguiente. Si queda, el proyector lo
+       ignora porque su id ya está entre los guardados. */
+    store.set(`${ruta}/paginas/${tr.pg}/trazos/${tr.id}`, { ...tr.datos, p: codificar(tr.puntos) })
+      .then(() => { if (!trazo.current) store.remove(`${ruta}/enCurso`) })
+  }
 
   const bajar = (e) => {
     if (e.pointerType === 'pen') conLapiz.current = true
@@ -101,15 +117,18 @@ function Tablero({ store, pin }) {
     /* Capturar el puntero hace que el trazo siga aunque el lápiz salga del
        papel. Si el navegador no lo permite, se escribe igual. */
     try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* sin captura */ }
-    const p = punto(e)
-    const datos = datosTrazo(borrador || botonDeBorrar(e))
-    trazo.current = { id: idDeTrazo(), pg: vista.pagina, datos, puntos: [p], enviados: 1, parte: 1, pointerId: e.pointerId }
-    store.set(`${ruta}/enCurso`, { id: trazo.current.id, pg: vista.pagina, ...datos, partes: { 0: codificar([p]) } })
-    pintar()
+    empezar(punto(e), e.pointerId, botonDeBorrar(e))
   }
   const mover = (e) => {
     const tr = trazo.current
     if (!tr || e.pointerId !== tr.pointerId) return
+    if (!borrador && e.pointerType === 'pen' && botonDeBorrar(e) !== Boolean(tr.datos.b)) {
+      const p = punto(e)
+      tr.puntos.push(p)
+      terminar(tr)
+      empezar(p, e.pointerId, botonDeBorrar(e))
+      return
+    }
     /* Los movimientos que el navegador juntó entre dos cuadros: con ellos la
        letra sale fina aunque la pantalla vaya lenta. Si no los da (o vienen
        vacíos), basta el movimiento mismo. */
@@ -124,12 +143,7 @@ function Tablero({ store, pin }) {
   const subir = (e) => {
     const tr = trazo.current
     if (!tr || e.pointerId !== tr.pointerId) return
-    trazo.current = null
-    /* Se borra el «en curso» solo si no empezó otro trazo mientras tanto:
-       escribiendo rápido, borraría el siguiente. Si queda, el proyector lo
-       ignora porque su id ya está entre los guardados. */
-    store.set(`${ruta}/paginas/${tr.pg}/trazos/${tr.id}`, { ...tr.datos, p: codificar(tr.puntos) })
-      .then(() => { if (!trazo.current) store.remove(`${ruta}/enCurso`) })
+    terminar(tr)
     setEnCurso(comoSeVe(tr, tr.puntos))
     /* El trazo queda dibujado arriba hasta que vuelve de la base y se suma a
        los de abajo: así no parpadea. */
