@@ -16,7 +16,9 @@ import { useEffect, useState } from 'react'
 import { useStore, useValue } from '../net/hooks.js'
 import { Button, Center, Logo } from '../ui.jsx'
 import { ProveedorIdioma, SelectorIdioma, idiomaDelNavegador, traducir, useT, valido } from '../i18n.jsx'
-import { ALTERNATIVAS, LIMITES, correccionVigente, idAlAzar, limpiarAbierta, nombreValido, palabrasDe } from '../live/logic.js'
+import {
+  ALTERNATIVAS, LIMITES, correccionVigente, idAlAzar, limpiarAbierta, nombreValido, palabrasDe, preguntasDelCurso,
+} from '../live/logic.js'
 import { Cambios } from '../live/Cambios.jsx'
 import { comoLista, raiz } from '../live/sala.js'
 import { useTema } from '../tema.jsx'
@@ -140,6 +142,11 @@ function Espera() {
 }
 
 function Responder({ store, base, pid, actividad, abierta }) {
+  if (actividad.tipo === 'preguntas') return <PreguntarYVotar store={store} base={base} pid={pid} actividad={actividad} abierta={abierta} />
+  return <ResponderUna store={store} base={base} pid={pid} actividad={actividad} abierta={abierta} />
+}
+
+function ResponderUna({ store, base, pid, actividad, abierta }) {
   const t = useT()
   const aid = actividad.id
   const mia = useValue(store, `${base}/respuestas/${aid}/${pid}`)
@@ -165,6 +172,7 @@ function Responder({ store, base, pid, actividad, abierta }) {
       ) : actividad.tipo === 'nube' ? <FormNube inicial={mia?.palabras} onEnviar={enviar} />
         : actividad.tipo === 'encuesta' ? <FormEncuesta actividad={actividad} inicial={mia?.opcion} onEnviar={enviar} />
         : actividad.tipo === 'escala' ? <FormEscala inicial={mia?.valor} onEnviar={enviar} />
+        : actividad.tipo === 'ranking' ? <FormRanking actividad={actividad} inicial={mia?.orden} onEnviar={enviar} />
         : <FormAbierta inicial={mia?.texto} onEnviar={enviar} />}
     </div>
   )
@@ -176,6 +184,7 @@ function Enviada({ actividad, mia, decision, correccion, abierta, onCambiar }) {
   const lo = actividad.tipo === 'nube' ? (mia.palabras || []).join(' · ')
     : actividad.tipo === 'encuesta' ? `${ALTERNATIVAS[mia.opcion]?.letra}. ${actividad.alternativas?.[mia.opcion] ?? ''}`
     : actividad.tipo === 'escala' ? `${mia.valor} · ${t('escala')[mia.valor - 1] ?? ''}`
+    : actividad.tipo === 'ranking' ? (mia.orden || []).map((i, p) => `${p + 1}. ${actividad.alternativas?.[i] ?? ''}`).join('  ')
     : mia.texto
   const corregida = actividad.tipo === 'abierta' ? correccionVigente(correccion, limpiarAbierta(mia.texto)) : null
   return (
@@ -266,5 +275,142 @@ function FormAbierta({ inicial, onEnviar }) {
       <p className="text-right text-xs text-slate-400 tabular-nums">{texto.length}/{LIMITES.abierta}</p>
       <Button disabled={!limpio} className="text-lg">{t('enviar')}</Button>
     </form>
+  )
+}
+
+/* ORDENAR: se tocan los elementos del primero al último y van subiendo a «Tu
+   orden». Tocar uno de arriba lo devuelve. Nada de arrastrar: en un celular
+   chico, arrastrar es lo que más falla. */
+function FormRanking({ actividad, inicial, onEnviar }) {
+  const t = useT()
+  const alts = actividad.alternativas || []
+  const [orden, setOrden] = useState(() => (Array.isArray(inicial) && inicial.length === alts.length ? inicial : []))
+  const quedan = alts.map((_, i) => i).filter(i => !orden.includes(i))
+  const fila = 'flex items-center gap-3 rounded-2xl border-2 p-3 text-left active:scale-[.98] transition'
+  return (
+    <div className="flex flex-col gap-3">
+      {orden.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('tuOrden')} · <span className="normal-case font-normal">{t('tocaParaQuitar')}</span></p>
+          {orden.map((i, p) => (
+            <button key={i} onClick={() => setOrden(o => o.filter(x => x !== i))} className={`${fila} border-teal-600 bg-teal-50`}>
+              <span className="grid place-items-center w-10 h-10 shrink-0 rounded-xl bg-teal-700 text-white text-xl font-black">{p + 1}</span>
+              <span className="text-lg font-semibold text-slate-900">{alts[i]}</span>
+            </button>
+          ))}
+        </section>
+      )}
+      {quedan.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <p className="text-sm text-slate-500">{orden.length ? t('faltanPorOrdenar', quedan.length) : t('tocaEnOrden')}</p>
+          {quedan.map(i => (
+            <button key={i} onClick={() => setOrden(o => [...o, i])} className={`${fila} border-slate-200 bg-white`}>
+              <span className="grid place-items-center w-10 h-10 shrink-0 rounded-xl border-2 border-dashed border-slate-300 text-slate-400 text-xl font-black">?</span>
+              <span className="text-lg font-semibold text-slate-900">{alts[i]}</span>
+            </button>
+          ))}
+        </section>
+      )}
+      <Button disabled={quedan.length > 0} onClick={() => onEnviar({ orden })} className="text-lg">{t('enviar')}</Button>
+    </div>
+  )
+}
+
+/* PREGUNTAS DEL CURSO: aquí no hay «una respuesta». Cada estudiante manda
+   hasta 3 preguntas y vota las de otros que el docente ya aprobó.
+
+   Todo lo suyo (preguntas y votos) vive en SU nodo y se reescribe entero en
+   cada cambio: las reglas exigen la hora del servidor en cada escritura, y
+   así ningún estudiante toca lo de otro. Cada pregunta guarda su hora la
+   primera vez; las que ya tenían la conservan. */
+function PreguntarYVotar({ store, base, pid, actividad, abierta }) {
+  const t = useT()
+  const aid = actividad.id
+  const respuestas = useValue(store, `${base}/respuestas/${aid}`)
+  const moderacion = useValue(store, `${base}/moderacion/${aid}`)
+  const [texto, setTexto] = useState('')
+  if (respuestas === undefined || moderacion === undefined) return <Center>{t('cargando')}</Center>
+
+  const mio = respuestas?.[pid] || {}
+  const guardar = (cambios) => store.set(`${base}/respuestas/${aid}/${pid}`, {
+    preguntas: mio.preguntas || {}, votos: mio.votos || {}, ...cambios, at: store.stamp(),
+  })
+  const { pendientes, aprobadas, descartadas } = preguntasDelCurso(respuestas, moderacion, pid)
+  const mias = [...pendientes, ...aprobadas, ...descartadas].filter(q => q.mia).sort((a, b) => a.at - b.at)
+  const paraVotar = aprobadas.filter(q => !q.mia && !q.respondida)
+  const cuantasMias = Object.keys(mio.preguntas || {}).length
+  const limpio = limpiarAbierta(texto)
+
+  const enviar = async (e) => {
+    e.preventDefault()
+    if (!limpio || cuantasMias >= LIMITES.preguntasPorPersona) return
+    await guardar({ preguntas: { ...(mio.preguntas || {}), [idAlAzar()]: { texto: limpio, at: store.stamp() } } })
+    setTexto('')
+  }
+  const borrar = (qid) => {
+    const { [qid]: _, ...resto } = mio.preguntas || {}
+    guardar({ preguntas: resto })
+  }
+  const votar = (qid, si) => {
+    const { [qid]: _, ...resto } = mio.votos || {}
+    guardar({ votos: si ? { ...resto, [qid]: true } : resto })
+  }
+  const estado = (q) => (q.decision === null ? t('estadoRevisando')
+    : q.decision === false ? t('estadoNoSeMostro')
+    : q.respondida ? `✓ ${t('respondida')}`
+    : `${t('estadoEnPantalla')} · ▲ ${q.votos}`)
+
+  return (
+    <div className="flex-1 flex flex-col gap-4">
+      <h1 className="text-2xl font-black text-slate-900 leading-snug">{actividad.pregunta}</h1>
+
+      {!abierta ? (
+        <p className="rounded-2xl bg-slate-100 p-4 text-center font-semibold text-slate-600">{t('respuestasCerradas')}</p>
+      ) : cuantasMias >= LIMITES.preguntasPorPersona ? (
+        <p className="rounded-2xl bg-slate-100 p-4 text-center font-semibold text-slate-600">{t('maxPreguntas', LIMITES.preguntasPorPersona)}</p>
+      ) : (
+        <form className="flex flex-col gap-2" onSubmit={enviar}>
+          <textarea value={texto} maxLength={LIMITES.abierta} rows={3} placeholder={t('escribeTuPregunta')} aria-label={t('escribeTuPregunta')}
+            onChange={(e) => setTexto(e.target.value)}
+            className="rounded-xl border-2 border-slate-200 px-4 py-3 text-lg focus:border-teal-600 outline-none resize-none" />
+          <div className="flex items-center gap-2">
+            <p className="flex-1 text-sm text-slate-500">{t('preguntaAnonima')}</p>
+            <p className="text-xs text-slate-400 tabular-nums">{texto.length}/{LIMITES.abierta}</p>
+          </div>
+          <Button disabled={!limpio} className="text-lg">{t('enviarPregunta')}</Button>
+        </form>
+      )}
+
+      {mias.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('tusPreguntas')}</h2>
+          {mias.map(q => (
+            <div key={q.qid} className="rounded-2xl bg-white border border-slate-200 p-3">
+              <p className="font-semibold text-slate-900 break-words">{q.texto}</p>
+              <div className="mt-1.5 flex items-center gap-2">
+                <span className={`flex-1 text-sm font-bold ${q.decision === true ? 'text-teal-800' : 'text-slate-500'}`}>{estado(q)}</span>
+                {abierta && q.decision === null && (
+                  <button onClick={() => borrar(q.qid)} className="rounded-lg border border-slate-300 px-3 py-1 text-sm font-bold text-slate-700">{t('borrarPregunta')}</button>
+                )}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('votaLasQue')}</h2>
+        {paraVotar.length === 0 ? <p className="text-sm text-slate-500">{t('todaviaNadaQueVotar')}</p> : paraVotar.map(q => (
+          <button key={q.qid} disabled={!abierta} onClick={() => votar(q.qid, !q.votada)} aria-pressed={q.votada}
+            aria-label={`${q.votada ? t('quitarVoto') : t('votar')}: ${q.texto}`}
+            className={`flex items-center gap-3 rounded-2xl border-2 p-3 text-left active:scale-[.98] transition disabled:opacity-60 ${q.votada ? 'border-teal-600 bg-teal-50' : 'border-slate-200 bg-white'}`}>
+            <span className={`flex flex-col items-center justify-center w-12 h-12 shrink-0 rounded-xl font-black tabular-nums leading-none ${q.votada ? 'bg-teal-700 text-white' : 'border-2 border-slate-300 text-slate-600'}`}>
+              <span aria-hidden="true" className="text-sm">▲</span>{q.votos}
+            </span>
+            <span className="text-lg font-semibold text-slate-900 break-words min-w-0">{q.texto}</span>
+          </button>
+        ))}
+      </section>
+    </div>
   )
 }

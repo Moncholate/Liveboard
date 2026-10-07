@@ -32,16 +32,21 @@ export const TEXTOS = {
   tipo_encuesta: { es: 'Encuesta', en: 'Poll' },
   tipo_escala: { es: 'Escala 1–5', en: 'Scale 1–5' },
   tipo_abierta: { es: 'Respuesta abierta', en: 'Open answer' },
+  tipo_ranking: { es: 'Ranking', en: 'Ranking' },
+  tipo_preguntas: { es: 'Preguntas del curso', en: 'Class questions' },
   ayuda_nube: { es: 'Cada estudiante escribe hasta 3 palabras. Las que más se repiten salen más grandes.', en: 'Each student writes up to 3 words. The most repeated ones show up bigger.' },
   ayuda_encuesta: { es: 'De 2 a 4 alternativas. Se ve cuántos eligieron cada una.', en: 'From 2 to 4 options. It shows how many chose each one.' },
   ayuda_escala: { es: 'Para medir: qué tan seguro te sientes, cuánto te gustó, qué tan difícil fue.', en: 'To measure: how confident you feel, how much you liked it, how hard it was.' },
   ayuda_abierta: { es: 'Una respuesta corta. Solo se proyectan las que apruebas.', en: 'A short answer. Only the ones you approve are shown.' },
+  ayuda_ranking: { es: 'De 3 a 6 elementos. Cada estudiante los ordena y se ve el orden del curso.', en: 'From 3 to 6 items. Each student puts them in order and the class ranking is shown.' },
+  ayuda_preguntas: { es: 'Los estudiantes te hacen preguntas sin su nombre y votan las de otros. Solo se proyectan las que apruebas.', en: 'Students ask you questions without their names and vote for others’ questions. Only the ones you approve are shown.' },
   escala: { es: ['Nada', 'Poco', 'Más o menos', 'Bastante', 'Mucho'], en: ['Not at all', 'A little', 'Somewhat', 'Quite', 'Very much'] },
 
   // Problemas al preparar
   prob_sinTipo: { es: 'Elige un tipo de actividad.', en: 'Choose an activity type.' },
   prob_sinPregunta: { es: 'Falta la pregunta.', en: 'The question is missing.' },
   prob_pocasAlternativas: { es: 'La encuesta necesita al menos 2 alternativas.', en: 'The poll needs at least 2 options.' },
+  prob_pocosElementos: { es: 'El ranking necesita al menos 3 elementos.', en: 'The ranking needs at least 3 items.' },
 
   // Proyector · preparar
   creandoSala: { es: 'Creando la sala…', en: 'Creating the room…' },
@@ -58,6 +63,9 @@ export const TEXTOS = {
   alternativa: { es: (l) => `Alternativa ${l}`, en: (l) => `Option ${l}` },
   quitarAlternativa: { es: (l) => `Quitar alternativa ${l}`, en: (l) => `Remove option ${l}` },
   masAlternativa: { es: '+ Alternativa', en: '+ Option' },
+  elemento: { es: (n) => `Elemento ${n}`, en: (n) => `Item ${n}` },
+  quitarElemento: { es: (n) => `Quitar elemento ${n}`, en: (n) => `Remove item ${n}` },
+  masElemento: { es: '+ Elemento', en: '+ Item' },
   mostrarEsta: { es: 'Mostrar esta', en: 'Show this one' },
   escaneaParaEntrar: { es: 'Escanea para entrar', en: 'Scan to join' },
   qrEntrar: { es: 'Código QR para entrar a la sala', en: 'QR code to join the room' },
@@ -96,6 +104,11 @@ export const TEXTOS = {
   vacioNube: { es: 'Las palabras van a aparecer aquí.', en: 'Words will appear here.' },
   vacioAbiertas: { es: 'Las respuestas que apruebes van a aparecer aquí.', en: 'The answers you approve will appear here.' },
   sinRespuestas: { es: 'Todavía no hay respuestas.', en: 'No answers yet.' },
+  vacioPreguntas: { es: 'Las preguntas que apruebes van a aparecer aquí.', en: 'The questions you approve will appear here.' },
+  puestoMedio: { es: (x) => `puesto medio ${x}`, en: (x) => `avg. place ${x}` },
+  ordenaron: { es: (n) => `${n} ${n === 1 ? 'ordenó' : 'ordenaron'}`, en: (n) => `${n} ranked` },
+  votosN: { es: (n) => `${n} ${n === 1 ? 'voto' : 'votos'}`, en: (n) => `${n} ${n === 1 ? 'vote' : 'votes'}` },
+  respondida: { es: 'Respondida', en: 'Answered' },
 
   // Moderación
   corregir: { es: 'Corregir', en: 'Correct' },
@@ -116,6 +129,9 @@ export const TEXTOS = {
   descartar: { es: 'Descartar', en: 'Discard' },
   aprobar: { es: 'Aprobar', en: 'Approve' },
   sinModeracion: { es: 'Esta actividad no necesita moderación: no hay texto libre.', en: 'This activity needs no moderation: there is no free text.' },
+  sinPreguntas: { es: 'Todavía no llegan preguntas.', en: 'No questions yet.' },
+  marcarRespondida: { es: 'Respondida', en: 'Answered' },
+  desmarcarRespondida: { es: 'No respondida', en: 'Not answered' },
 
   // Celular del docente
   docente: { es: 'Docente', en: 'Teacher' },
@@ -144,6 +160,23 @@ export const TEXTOS = {
   palabraN: { es: (n) => `Palabra ${n}`, en: (n) => `Word ${n}` },
   enviar: { es: 'Enviar', en: 'Send' },
   escribeRespuesta: { es: 'Escribe tu respuesta', en: 'Type your answer' },
+  tocaEnOrden: { es: 'Toca los elementos en orden, del primero al último.', en: 'Tap the items in order, from first to last.' },
+  tocaParaQuitar: { es: 'Toca uno para sacarlo.', en: 'Tap one to take it out.' },
+  faltanPorOrdenar: { es: (n) => `Faltan ${n}`, en: (n) => `${n} left` },
+  tuOrden: { es: 'Tu orden', en: 'Your order' },
+  escribeTuPregunta: { es: 'Escribe tu pregunta', en: 'Type your question' },
+  enviarPregunta: { es: 'Enviar pregunta', en: 'Send question' },
+  preguntaAnonima: { es: 'Nadie ve tu nombre junto a tu pregunta: ni el curso ni tu profe.', en: 'Nobody sees your name next to your question: not the class, not your teacher.' },
+  maxPreguntas: { es: (n) => `Ya enviaste ${n} preguntas, el máximo.`, en: (n) => `You already sent ${n} questions, the maximum.` },
+  tusPreguntas: { es: 'Tus preguntas', en: 'Your questions' },
+  votaLasQue: { es: 'Vota las que tú también quieres preguntar', en: 'Vote for the ones you want to ask too' },
+  todaviaNadaQueVotar: { es: 'Cuando tu profe apruebe preguntas, aparecen aquí para votar.', en: 'When your teacher approves questions, they appear here so you can vote.' },
+  votar: { es: 'Votar', en: 'Vote' },
+  quitarVoto: { es: 'Quitar voto', en: 'Remove vote' },
+  estadoRevisando: { es: 'Tu profe la revisa', en: 'Your teacher is reviewing it' },
+  estadoEnPantalla: { es: 'En pantalla', en: 'On screen' },
+  estadoNoSeMostro: { es: 'No se mostró', en: 'Not shown' },
+  borrarPregunta: { es: 'Borrar', en: 'Delete' },
 
   // Cuenta y materiales
   iniciarSesion: { es: 'Iniciar sesión con Google', en: 'Sign in with Google' },

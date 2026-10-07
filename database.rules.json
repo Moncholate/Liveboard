@@ -34,7 +34,12 @@
           "$aid": {
             "$pid": {
               ".write": true,
-              ".validate": "newData.child('at').val() === now && (!newData.child('texto').exists() || (newData.child('texto').isString() && newData.child('texto').val().length <= 140))"
+              ".validate": "newData.child('at').val() === now && (!newData.child('texto').exists() || (newData.child('texto').isString() && newData.child('texto').val().length <= 140))",
+              "preguntas": {
+                "$qid": {
+                  ".validate": "newData.child('texto').isString() && newData.child('texto').val().length <= 140"
+                }
+              }
             }
           }
         },

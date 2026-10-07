@@ -7,17 +7,23 @@
      · el PC (`conNombres` apagado): si el PC es el del proyector, esto lo ve
        el curso, así que sin nombres, y con el aviso de que se está viendo.
 
+   PREGUNTAS DEL CURSO (7-oct-2026): anónimas también aquí, aunque sea el
+   celular del docente. La gracia es que se atrevan a preguntar.
+
    CORREGIR (6-oct-2026): en las abiertas, el docente puede arreglar un error
    chico en el momento. Se guarda aparte del original (sala.js), el proyector
    muestra solo la versión limpia y el estudiante ve en su celular qué cambió.
    ========================================================================== */
 import { useState } from 'react'
-import { LIMITES, abiertas, nube } from './logic.js'
+import { LIMITES, abiertas, nube, preguntasDelCurso } from './logic.js'
 import { Cambios } from './Cambios.jsx'
 import { useT } from '../i18n.jsx'
 
-export function Moderacion({ actividad, respuestas, moderacion, participantes, conNombres = false, onPalabra, onAbierta, onCorregir }) {
+export function Moderacion({ actividad, respuestas, moderacion, participantes, conNombres = false, onPalabra, onAbierta, onCorregir, onPregunta, onRespondida }) {
   const t = useT()
+  if (actividad.tipo === 'preguntas') {
+    return <ModerarPreguntas respuestas={respuestas} moderacion={moderacion} onPregunta={onPregunta} onRespondida={onRespondida} />
+  }
   if (actividad.tipo === 'nube') {
     const palabras = nube(respuestas, moderacion?.palabras)
     if (!palabras.length) return <p className="text-sm text-slate-500">{t('sinPalabras')}</p>
@@ -86,6 +92,70 @@ export function Moderacion({ actividad, respuestas, moderacion, participantes, c
   }
 
   return <p className="text-sm text-slate-500">{t('sinModeracion')}</p>
+}
+
+function ModerarPreguntas({ respuestas, moderacion, onPregunta, onRespondida }) {
+  const t = useT()
+  const { pendientes, aprobadas, descartadas } = preguntasDelCurso(respuestas, moderacion)
+  const boton = (texto, clase, onClick) => (
+    <button onClick={onClick} className={`rounded-lg px-3 py-1 text-sm font-bold ${clase}`}>{texto}</button>
+  )
+  const Fila = ({ q, children }) => (
+    <li className={`rounded-lg border px-3 py-2 ${q.groseria ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-white'}`}>
+      <p className={`font-semibold break-words ${q.respondida ? 'text-slate-500' : 'text-slate-800'}`}>{q.texto}</p>
+      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+        {q.decision === true && <span className="text-xs font-bold text-slate-500 tabular-nums">▲ {t('votosN', q.votos)}</span>}
+        {q.groseria && <span className="text-xs font-bold text-rose-700">{t('filtro')}</span>}
+        <span className="flex-1" />
+        {children}
+      </div>
+    </li>
+  )
+  if (!pendientes.length && !aprobadas.length && !descartadas.length) return <p className="text-sm text-slate-500">{t('sinPreguntas')}</p>
+  return (
+    <div className="flex flex-col gap-4">
+      <section>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">{t('porRevisar')} · {pendientes.length}</h3>
+        {pendientes.length ? (
+          <ul className="flex flex-col gap-1.5">
+            {pendientes.map(q => (
+              <Fila key={q.qid} q={q}>
+                {boton(t('descartar'), 'border border-slate-300 text-slate-700', () => onPregunta(q.qid, false))}
+                {boton(t('aprobar'), 'bg-teal-700 text-white', () => onPregunta(q.qid, true))}
+              </Fila>
+            ))}
+          </ul>
+        ) : <p className="text-sm text-slate-500">{t('sinPendientes')}</p>}
+      </section>
+      {aprobadas.length > 0 && (
+        <section>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">{t('enPantalla')} · {aprobadas.length}</h3>
+          <ul className="flex flex-col gap-1.5">
+            {aprobadas.map(q => (
+              <Fila key={q.qid} q={q}>
+                {boton(t('quitar'), 'border border-slate-300 text-slate-700', () => onPregunta(q.qid, false))}
+                {q.respondida
+                  ? boton(t('desmarcarRespondida'), 'border border-slate-300 text-slate-700', () => onRespondida(q.qid, false))
+                  : boton(`✓ ${t('marcarRespondida')}`, 'bg-teal-700 text-white', () => onRespondida(q.qid, true))}
+              </Fila>
+            ))}
+          </ul>
+        </section>
+      )}
+      {descartadas.length > 0 && (
+        <details>
+          <summary className="text-xs font-bold uppercase tracking-wider text-slate-500 cursor-pointer">{t('descartadas')} · {descartadas.length}</summary>
+          <ul className="mt-1.5 flex flex-col gap-1.5">
+            {descartadas.map(q => (
+              <Fila key={q.qid} q={q}>
+                {boton(t('aprobar'), 'border border-teal-600 text-teal-700', () => onPregunta(q.qid, true))}
+              </Fila>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  )
 }
 
 /* UNA RESPUESTA ABIERTA, con su corrección. Va como componente propio y no

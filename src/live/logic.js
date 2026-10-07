@@ -13,7 +13,7 @@ import { esGroseria } from './groserias.js'
 
 /* Los tipos de actividad, en el orden en que se ofrecen. Sus nombres y su
    ayuda están en i18n.jsx (tipo_nube, ayuda_nube…), en los dos idiomas. */
-export const TIPOS = ['nube', 'encuesta', 'escala', 'abierta']
+export const TIPOS = ['nube', 'encuesta', 'escala', 'abierta', 'ranking', 'preguntas']
 
 export const LIMITES = {
   pregunta: 140,
@@ -24,7 +24,19 @@ export const LIMITES = {
   maxAlternativas: 4,
   abierta: 140,
   nombre: 16,
+  minRanking: 3,
+  maxRanking: 6,
+  preguntasPorPersona: 3,
 }
+
+/** Cuántas alternativas lleva cada tipo. Un ranking de 2 sería una encuesta,
+    y con más de 6 ordenar en el celular se vuelve un trámite. */
+export const rangoAlternativas = (tipo) => (tipo === 'ranking'
+  ? { min: LIMITES.minRanking, max: LIMITES.maxRanking }
+  : { min: LIMITES.minAlternativas, max: LIMITES.maxAlternativas })
+
+/** Los tipos que el docente arma con una lista de alternativas. */
+export const conAlternativas = (tipo) => tipo === 'encuesta' || tipo === 'ranking'
 
 /* Letras y colores de las alternativas: los mismos de Kachai, que a propósito
    no son los de Kahoot (ni figuras ni rojo-azul-amarillo-verde). */
@@ -41,7 +53,7 @@ export const actividadNueva = (tipo, azar = Math.random) => ({
   id: idAlAzar(azar),
   tipo,
   pregunta: '',
-  ...(tipo === 'encuesta' ? { alternativas: ['', ''] } : {}),
+  ...(conAlternativas(tipo) ? { alternativas: Array(rangoAlternativas(tipo).min).fill('') } : {}),
 })
 
 /** ¿Se puede lanzar? Devuelve el motivo si no —una clave de i18n.jsx
@@ -49,9 +61,9 @@ export const actividadNueva = (tipo, azar = Math.random) => ({
 export const problemaDe = (a) => {
   if (!a || !TIPOS.includes(a.tipo)) return 'prob_sinTipo'
   if (!String(a.pregunta || '').trim()) return 'prob_sinPregunta'
-  if (a.tipo === 'encuesta') {
+  if (conAlternativas(a.tipo)) {
     const llenas = (a.alternativas || []).filter(x => String(x).trim())
-    if (llenas.length < LIMITES.minAlternativas) return 'prob_pocasAlternativas'
+    if (llenas.length < rangoAlternativas(a.tipo).min) return a.tipo === 'ranking' ? 'prob_pocosElementos' : 'prob_pocasAlternativas'
   }
   return null
 }
@@ -61,8 +73,8 @@ export const limpiarActividad = (a) => ({
   ...(a.id ? { id: a.id } : {}),
   tipo: a.tipo,
   pregunta: String(a.pregunta || '').trim().slice(0, LIMITES.pregunta),
-  ...(a.tipo === 'encuesta'
-    ? { alternativas: (a.alternativas || []).map(x => String(x).trim().slice(0, LIMITES.alternativa)).filter(Boolean).slice(0, LIMITES.maxAlternativas) }
+  ...(conAlternativas(a.tipo)
+    ? { alternativas: (a.alternativas || []).map(x => String(x).trim().slice(0, LIMITES.alternativa)).filter(Boolean).slice(0, rangoAlternativas(a.tipo).max) }
     : {}),
 })
 
@@ -159,6 +171,89 @@ export const estadisticaEscala = (respuestas) => {
   }
   const total = votos.reduce((a, b) => a + b, 0)
   return { votos, total, promedio: total ? Math.round((suma / total) * 10) / 10 : null }
+}
+
+/* ── Ranking ───────────────────────────────────────────────────────────── */
+
+/** Un orden sirve si trae cada elemento exactamente una vez. */
+export const ordenValido = (orden, n) => Array.isArray(orden) && orden.length === n
+  && orden.every(i => Number.isInteger(i) && i >= 0 && i < n) && new Set(orden).size === n
+
+/**
+ * El ranking del curso. Cada orden reparte puntos (n-1 al primero, 0 al
+ * último) y se ordena por puntos. `promedio` es el puesto medio con un
+ * decimal: es lo que se entiende al mirarlo («en promedio quedó 1,8.º»).
+ * `maximo` = los puntos que tendría un elemento que todos pusieron primero.
+ */
+export const resultadoRanking = (respuestas, n) => {
+  const puntos = Array(n).fill(0)
+  const sumaPuestos = Array(n).fill(0)
+  let total = 0
+  for (const r of Object.values(respuestas || {})) {
+    if (!ordenValido(r?.orden, n)) continue
+    total++
+    r.orden.forEach((i, puesto) => { puntos[i] += n - 1 - puesto; sumaPuestos[i] += puesto + 1 })
+  }
+  const filas = Array.from({ length: n }, (_, i) => ({
+    i,
+    puntos: puntos[i],
+    promedio: total ? Math.round((sumaPuestos[i] / total) * 10) / 10 : null,
+  })).sort((a, b) => b.puntos - a.puntos || a.i - b.i)
+  /* Empatados, mismo puesto (1, 1, 3): mostrar 1.º y 2.º diría que uno ganó. */
+  filas.forEach((f, k) => { f.puesto = k && f.puntos === filas[k - 1].puntos ? filas[k - 1].puesto : k + 1 })
+  return { filas, total, maximo: total * (n - 1) }
+}
+
+/* ── Preguntas del curso ───────────────────────────────────────────────── */
+
+/**
+ * Las preguntas que los estudiantes le hacen al docente, con sus votos.
+ *
+ * Cada estudiante guarda todo lo suyo en su propia respuesta:
+ *   { preguntas: { qid: { texto, at } }, votos: { qid: true } }
+ * `moderacion` = { preguntas: { qid: true | false }, respondidas: { qid: true } }.
+ *
+ * Son ANÓNIMAS de verdad en pantalla: ni el proyector ni el celular del
+ * docente muestran quién preguntó. Solo se votan las aprobadas, y el voto
+ * propio a la pregunta propia no cuenta.
+ *
+ * Las aprobadas van primero las sin responder, de más a menos votos; las
+ * respondidas, al final.
+ */
+export const preguntasDelCurso = (respuestas, moderacion = {}, yo = null) => {
+  const lista = []
+  const votos = new Map()
+  for (const [pid, r] of Object.entries(respuestas || {})) {
+    for (const [qid, v] of Object.entries(r?.votos || {})) {
+      if (v === true) votos.set(qid, [...(votos.get(qid) || []), pid])
+    }
+  }
+  for (const [pid, r] of Object.entries(respuestas || {})) {
+    for (const [qid, q] of Object.entries(r?.preguntas || {})) {
+      const texto = limpiarAbierta(q?.texto)
+      if (!texto) continue
+      const d = moderacion?.preguntas?.[qid]
+      const quienes = (votos.get(qid) || []).filter(v => v !== pid)
+      lista.push({
+        qid,
+        texto,
+        at: typeof q?.at === 'number' ? q.at : 0,
+        votos: quienes.length,
+        decision: d === true ? true : d === false ? false : null,
+        respondida: moderacion?.respondidas?.[qid] === true,
+        groseria: esGroseria(texto),
+        mia: yo != null && pid === yo,
+        votada: yo != null && quienes.includes(yo),
+      })
+    }
+  }
+  const porLlegada = (a, b) => a.at - b.at || a.qid.localeCompare(b.qid)
+  return {
+    pendientes: lista.filter(q => q.decision === null).sort(porLlegada),
+    aprobadas: lista.filter(q => q.decision === true)
+      .sort((a, b) => Number(a.respondida) - Number(b.respondida) || b.votos - a.votos || porLlegada(a, b)),
+    descartadas: lista.filter(q => q.decision === false).sort(porLlegada),
+  }
 }
 
 /* ── Respuestas abiertas ───────────────────────────────────────────────── */

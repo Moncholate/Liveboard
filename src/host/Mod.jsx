@@ -16,7 +16,7 @@ import { cuantosRespondieron } from '../live/logic.js'
 import { ProveedorIdioma, traducir, useT, valido } from '../i18n.jsx'
 import { accionesDeSala, comoLista, conectados, raiz } from '../live/sala.js'
 import { Moderacion } from '../live/Moderacion.jsx'
-import { Encuesta, Escala, Nube } from '../live/Resultados.jsx'
+import { Encuesta, Escala, Nube, Ranking } from '../live/Resultados.jsx'
 import { useTema } from '../tema.jsx'
 
 export default function Mod({ pin, clave }) {
@@ -103,18 +103,20 @@ function EnVivo({ store, base, idx, total, actividad, estado, participantes, acc
         </Button>
       </section>
 
-      {(actividad.tipo === 'nube' || actividad.tipo === 'abierta') ? (
+      {['nube', 'abierta', 'preguntas'].includes(actividad.tipo) ? (
         <section>
           <h2 className="font-black text-slate-900 mb-2">{t('moderar')}</h2>
           <Moderacion actividad={actividad} respuestas={respuestas} moderacion={moderacion} participantes={participantes} conNombres
             onPalabra={(clave, d) => acciones.moderarPalabra(aid, clave, d)}
             onAbierta={(pid, d) => acciones.decidirAbierta(aid, pid, d)}
-            onCorregir={(pid, texto, de) => acciones.corregirAbierta(aid, pid, texto, de)} />
+            onCorregir={(pid, texto, de) => acciones.corregirAbierta(aid, pid, texto, de)}
+            onPregunta={(qid, d) => acciones.decidirPregunta(aid, qid, d)}
+            onRespondida={(qid, si) => acciones.marcarRespondida(aid, qid, si)} />
         </section>
       ) : (
         <section className="rounded-2xl bg-white border border-slate-200 p-4">
-          {actividad.tipo === 'encuesta'
-            ? <Encuesta actividad={actividad} respuestas={respuestas} chico />
+          {actividad.tipo === 'encuesta' ? <Encuesta actividad={actividad} respuestas={respuestas} chico />
+            : actividad.tipo === 'ranking' ? <Ranking actividad={actividad} respuestas={respuestas} chico />
             : <Escala respuestas={respuestas} chico />}
         </section>
       )}

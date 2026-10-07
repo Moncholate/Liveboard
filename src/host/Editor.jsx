@@ -6,7 +6,7 @@
    materiales no hay sala, así que no lo lleva.
    ========================================================================== */
 import { useT } from '../i18n.jsx'
-import { ALTERNATIVAS, LIMITES, TIPOS, actividadNueva, problemaDe } from '../live/logic.js'
+import { ALTERNATIVAS, LIMITES, TIPOS, actividadNueva, conAlternativas, problemaDe, rangoAlternativas } from '../live/logic.js'
 import { Button } from '../ui.jsx'
 
 export function Editor({ lista, setLista, onMostrar }) {
@@ -48,7 +48,6 @@ export function Editor({ lista, setLista, onMostrar }) {
 function Tarjeta({ a, i, total, onCambiar, onQuitar, onMover, onMostrar }) {
   const t = useT()
   const campo = 'w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-teal-600 outline-none'
-  const alts = a.alternativas || []
   const problema = problemaDe(a)
   return (
     <div className="rounded-2xl bg-white border border-slate-200 p-4 flex flex-col gap-2.5">
@@ -62,33 +61,45 @@ function Tarjeta({ a, i, total, onCambiar, onQuitar, onMover, onMostrar }) {
       </div>
       <input value={a.pregunta} maxLength={LIMITES.pregunta} placeholder={t('escribePregunta')}
         onChange={(e) => onCambiar({ pregunta: e.target.value })} className={`${campo} font-semibold`} />
-      {a.tipo === 'encuesta' && (
-        <div className="flex flex-col gap-1.5">
-          {alts.map((alt, j) => (
-            <div key={j} className="flex items-center gap-2">
-              <span className={`grid place-items-center w-8 h-8 shrink-0 rounded-lg text-white font-black ${ALTERNATIVAS[j].solido}`}>{ALTERNATIVAS[j].letra}</span>
-              <input value={alt} maxLength={LIMITES.alternativa} placeholder={t('alternativa', ALTERNATIVAS[j].letra)}
-                onChange={(e) => onCambiar({ alternativas: alts.map((x, k) => (k === j ? e.target.value : x)) })}
-                className={campo} />
-              {alts.length > LIMITES.minAlternativas && (
-                <button onClick={() => onCambiar({ alternativas: alts.filter((_, k) => k !== j) })}
-                  aria-label={t('quitarAlternativa', ALTERNATIVAS[j].letra)} className="px-2 text-slate-400 hover:text-rose-700">×</button>
-              )}
-            </div>
-          ))}
-          {alts.length < LIMITES.maxAlternativas && (
-            <button onClick={() => onCambiar({ alternativas: [...alts, ''] })} className="self-start text-sm font-semibold text-teal-800">
-              {t('masAlternativa')}
-            </button>
-          )}
-        </div>
-      )}
+      {conAlternativas(a.tipo) && <Alternativas a={a} campo={campo} onCambiar={onCambiar} />}
       <div className="flex items-center gap-3">
         <span className="flex-1 text-xs text-slate-500">{problema ? t(problema) : t(`ayuda_${a.tipo}`)}</span>
         {onMostrar && (
           <Button variant="ghost" className="!px-3 !py-1.5 text-sm" disabled={Boolean(problema)} onClick={onMostrar}>{t('mostrarEsta')}</Button>
         )}
       </div>
+    </div>
+  )
+}
+
+/* Las alternativas de una encuesta (A–D, con sus colores) o los elementos de
+   un ranking (1–6, sin color: el número es su lugar en la lista, no una
+   respuesta que se elige). */
+function Alternativas({ a, campo, onCambiar }) {
+  const t = useT()
+  const alts = a.alternativas || []
+  const { min, max } = rangoAlternativas(a.tipo)
+  const ranking = a.tipo === 'ranking'
+  const rotulo = (j) => (ranking ? String(j + 1) : ALTERNATIVAS[j].letra)
+  return (
+    <div className="flex flex-col gap-1.5">
+      {alts.map((alt, j) => (
+        <div key={j} className="flex items-center gap-2">
+          <span className={`grid place-items-center w-8 h-8 shrink-0 rounded-lg font-black ${ranking ? 'bg-slate-100 text-slate-600' : `text-white ${ALTERNATIVAS[j].solido}`}`}>{rotulo(j)}</span>
+          <input value={alt} maxLength={LIMITES.alternativa} placeholder={ranking ? t('elemento', j + 1) : t('alternativa', rotulo(j))}
+            onChange={(e) => onCambiar({ alternativas: alts.map((x, k) => (k === j ? e.target.value : x)) })}
+            className={campo} />
+          {alts.length > min && (
+            <button onClick={() => onCambiar({ alternativas: alts.filter((_, k) => k !== j) })}
+              aria-label={ranking ? t('quitarElemento', j + 1) : t('quitarAlternativa', rotulo(j))} className="px-2 text-slate-400 hover:text-rose-700">×</button>
+          )}
+        </div>
+      ))}
+      {alts.length < max && (
+        <button onClick={() => onCambiar({ alternativas: [...alts, ''] })} className="self-start text-sm font-semibold text-teal-800">
+          {ranking ? t('masElemento') : t('masAlternativa')}
+        </button>
+      )}
     </div>
   )
 }

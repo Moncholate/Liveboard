@@ -21,12 +21,12 @@ import { useStore, useUser, useValue } from '../net/hooks.js'
 import { isOnline } from '../net/store.js'
 import { Button, Center, Logo, urlParaUnirse } from '../ui.jsx'
 import { ProveedorIdioma, SelectorIdioma, idiomaDelNavegador, traducir, useT, valido } from '../i18n.jsx'
-import { abiertas, cuantosRespondieron, idAlAzar, pinAlAzar, problemaDe } from '../live/logic.js'
+import { abiertas, cuantosRespondieron, idAlAzar, pinAlAzar, preguntasDelCurso, problemaDe } from '../live/logic.js'
 import { accionesDeSala, comoLista, conectados, raiz } from '../live/sala.js'
 import {
   actividadesParaSala, idMaterialNuevo, listaDeMateriales, materialParaGuardar, rutaMaterial, rutaMateriales,
 } from '../live/materiales.js'
-import { Abiertas, Encuesta, Escala, Nube } from '../live/Resultados.jsx'
+import { Abiertas, Encuesta, Escala, Nube, Preguntas, Ranking } from '../live/Resultados.jsx'
 import { Moderacion } from '../live/Moderacion.jsx'
 import { Editor } from './Editor.jsx'
 import { Cuenta, iniciarSesion } from './Cuenta.jsx'
@@ -323,9 +323,12 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
   const respuestas = useValue(store, aid ? `${base}/respuestas/${aid}` : null)
   const moderacion = useValue(store, aid ? `${base}/moderacion/${aid}` : null)
   const [moderando, setModerando] = useState(false)
-  const moderable = actividad.tipo === 'nube' || actividad.tipo === 'abierta'
+  const moderable = ['nube', 'abierta', 'preguntas'].includes(actividad.tipo)
   const n = cuantosRespondieron(respuestas)
-  const pendientes = actividad.tipo === 'abierta' ? abiertas(respuestas, moderacion?.abiertas).pendientes.length : 0
+  const aprobadasYPendientes = actividad.tipo === 'abierta' ? abiertas(respuestas, moderacion?.abiertas)
+    : actividad.tipo === 'preguntas' ? preguntasDelCurso(respuestas, moderacion)
+    : null
+  const pendientes = aprobadasYPendientes?.pendientes.length || 0
   /* CON FONDO, CADA COSA LLEVA SU PROPIO PANEL, y no uno solo para todo. Iba un
      panel casi opaco del tamaño de la pantalla y el fondo quedaba reducido a un
      marco de 20 px: en una pregunta abierta se veía un cuadrado gigante y un
@@ -335,8 +338,7 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
   const f = fondoPorId(fondo)
   const conFondo = Boolean(f.css)
   const panel = conFondo ? 'panel-proyector rounded-3xl shadow-xl' : ''
-  const sinPanel = actividad.tipo === 'abierta' && estado.resultados
-    && abiertas(respuestas, moderacion?.abiertas).aprobadas.length > 0
+  const sinPanel = estado.resultados && (aprobadasYPendientes?.aprobadas.length || 0) > 0
 
   return (
     <main className="flex-1 flex min-h-0">
@@ -404,7 +406,9 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
           <Moderacion actividad={actividad} respuestas={respuestas} moderacion={moderacion} participantes={participantes}
             onPalabra={(clave, d) => acciones.moderarPalabra(aid, clave, d)}
             onAbierta={(pid, d) => acciones.decidirAbierta(aid, pid, d)}
-            onCorregir={(pid, texto, de) => acciones.corregirAbierta(aid, pid, texto, de)} />
+            onCorregir={(pid, texto, de) => acciones.corregirAbierta(aid, pid, texto, de)}
+            onPregunta={(qid, d) => acciones.decidirPregunta(aid, qid, d)}
+            onRespondida={(qid, si) => acciones.marcarRespondida(aid, qid, si)} />
         </aside>
       )}
     </main>
@@ -417,6 +421,8 @@ function Resultados({ actividad, respuestas, moderacion, sobreFondo = false }) {
     case 'encuesta': return <div className="w-full max-w-4xl mx-auto"><Encuesta actividad={actividad} respuestas={respuestas} /></div>
     case 'escala': return <div className="w-full max-w-4xl mx-auto"><Escala respuestas={respuestas} /></div>
     case 'abierta': return <Abiertas aprobadas={abiertas(respuestas, moderacion?.abiertas, {}, moderacion?.correcciones).aprobadas} sobreFondo={sobreFondo} />
+    case 'ranking': return <div className="w-full max-w-4xl mx-auto"><Ranking actividad={actividad} respuestas={respuestas} /></div>
+    case 'preguntas': return <Preguntas aprobadas={preguntasDelCurso(respuestas, moderacion).aprobadas} sobreFondo={sobreFondo} />
     default: return null
   }
 }

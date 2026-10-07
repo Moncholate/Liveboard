@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   abiertas, actividadNueva, claveDePalabra, conteoEncuesta, correccionVigente, diferencias, estadisticaEscala, limpiarActividad,
-  limpiarPalabra, nombreValido, nube, palabrasDe, pinAlAzar, problemaDe, tamanoEnNube,
+  limpiarPalabra, nombreValido, nube, ordenValido, palabrasDe, pinAlAzar, preguntasDelCurso, problemaDe, resultadoRanking, tamanoEnNube,
 } from './logic.js'
 import { esGroseria } from './groserias.js'
 
@@ -89,6 +89,73 @@ describe('encuesta y escala', () => {
 
   it('sin respuestas no hay promedio', () => {
     expect(estadisticaEscala({}).promedio).toBeNull()
+  })
+})
+
+describe('ranking', () => {
+  it('un orden vale solo si trae cada elemento una vez', () => {
+    expect(ordenValido([2, 0, 1], 3)).toBe(true)
+    expect(ordenValido([0, 0, 1], 3)).toBe(false)
+    expect(ordenValido([0, 1], 3)).toBe(false)
+    expect(ordenValido([0, 1, 3], 3)).toBe(false)
+  })
+
+  it('reparte puntos por puesto, ordena por puntos y saca el puesto medio', () => {
+    const r = { a: { orden: [1, 0, 2] }, b: { orden: [1, 2, 0] }, c: { orden: [0, 1, 2] }, d: { orden: [0, 0, 0] } }
+    const { filas, total, maximo } = resultadoRanking(r, 3)
+    expect(total).toBe(3)
+    expect(maximo).toBe(6)
+    expect(filas.map(f => [f.i, f.puntos, f.promedio])).toEqual([[1, 5, 1.3], [0, 3, 2], [2, 1, 2.7]])
+  })
+
+  it('los empatados comparten puesto', () => {
+    const r = { a: { orden: [0, 1, 2] }, b: { orden: [1, 0, 2] } }
+    expect(resultadoRanking(r, 3).filas.map(f => f.puesto)).toEqual([1, 1, 3])
+  })
+
+  it('sin respuestas no hay puesto medio', () => {
+    expect(resultadoRanking({}, 3).filas[0].promedio).toBeNull()
+  })
+
+  it('pide al menos 3 elementos y guarda máximo 6', () => {
+    expect(problemaDe({ tipo: 'ranking', pregunta: '¿Qué?', alternativas: ['a', 'b', ' '] })).toBe('prob_pocosElementos')
+    expect(actividadNueva('ranking').alternativas).toHaveLength(3)
+    expect(limpiarActividad({ tipo: 'ranking', pregunta: 'x', alternativas: ['1', '2', '3', '4', '5', '6', '7'] }).alternativas).toHaveLength(6)
+  })
+})
+
+describe('preguntas del curso', () => {
+  const r = {
+    ana: { preguntas: { q1: { texto: '¿Entra en la prueba?', at: 2 } }, votos: { q1: true, q2: true } },
+    beto: { preguntas: { q2: { texto: '¿Por qué la mitocondria?', at: 1 }, q3: { texto: 'weón', at: 3 } }, votos: { q1: true } },
+    caro: { votos: { q1: true, q2: false } },
+  }
+  const mod = { preguntas: { q1: true, q2: true, q3: false }, respondidas: { q2: true } }
+
+  it('separa por decisión y no cuenta el voto propio', () => {
+    const { pendientes, aprobadas, descartadas } = preguntasDelCurso(r, mod)
+    expect(pendientes).toEqual([])
+    expect(descartadas.map(q => q.qid)).toEqual(['q3'])
+    expect(aprobadas.find(q => q.qid === 'q1').votos).toBe(2)
+  })
+
+  it('las respondidas van al final aunque tengan más votos', () => {
+    const { aprobadas } = preguntasDelCurso(r, mod)
+    expect(aprobadas.map(q => q.qid)).toEqual(['q1', 'q2'])
+    expect(preguntasDelCurso(r, { preguntas: mod.preguntas }).aprobadas.map(q => q.qid)).toEqual(['q1', 'q2'])
+  })
+
+  it('sin decisión quedan pendientes, en orden de llegada y marcando groserías', () => {
+    const { pendientes } = preguntasDelCurso(r, {})
+    expect(pendientes.map(q => q.qid)).toEqual(['q2', 'q1', 'q3'])
+    expect(pendientes[2].groseria).toBe(true)
+  })
+
+  it('no lleva quién preguntó; solo si es mía y si la voté', () => {
+    const q1 = preguntasDelCurso(r, mod, 'beto').aprobadas.find(q => q.qid === 'q1')
+    expect(q1).toMatchObject({ mia: false, votada: true })
+    expect(Object.values(q1)).not.toContain('ana')
+    expect(preguntasDelCurso(r, mod, 'ana').aprobadas.find(q => q.qid === 'q1').mia).toBe(true)
   })
 })
 

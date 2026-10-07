@@ -10,10 +10,16 @@
      actividades   [ { id, tipo, pregunta, alternativas? } ]
      participantes { pid: { nombre, at } }
      online        { pid: true | false }
-     respuestas    { aid: { pid: { palabras | opcion | valor | texto, at } } }
+     respuestas    { aid: { pid: { palabras | opcion | valor | texto | orden, at } } }
+                   en «preguntas» cada uno guarda las suyas y sus votos:
+                   { preguntas: { qid: { texto, at } }, votos: { qid: true }, at }
+                   y reescribe el nodo entero, porque las reglas piden que `at`
+                   sea la hora del servidor en cada escritura
      moderacion    { aid: { palabras: { clave: 'ocultar' | 'mostrar' },
                             abiertas: { pid: true | false },
-                            correcciones: { pid: { texto, de } } } }
+                            correcciones: { pid: { texto, de } },
+                            preguntas: { qid: true | false },
+                            respondidas: { qid: true } } }
                    (la corrección del docente; `de` = el texto que corrigió,
                    para que caduque sola si el estudiante cambia el suyo)
 
@@ -47,6 +53,8 @@ export const accionesDeSala = (store, pin) => {
       const limpio = limpiarAbierta(texto)
       return limpio && limpio !== limpiarAbierta(de) ? store.set(ruta, { texto: limpio, de: limpiarAbierta(de) }) : store.remove(ruta)
     },
+    decidirPregunta: (aid, qid, decision) => store.set(`${base}/moderacion/${aid}/preguntas/${qid}`, decision),
+    marcarRespondida: (aid, qid, si) => store.set(`${base}/moderacion/${aid}/respondidas/${qid}`, si ? true : null),
     cerrarSala: () => store.remove(base),
   }
 }
