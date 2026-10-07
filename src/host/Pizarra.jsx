@@ -123,8 +123,7 @@ function Tablero({ store, pin }) {
     const tr = trazo.current
     /* El S Pen de la Tab S9 en Edge (y quizá en otros) no avisa el botón como
        botón: con el botón apretado el lápiz se mueve «con clic» pero sin
-       presión y sin apoyar la punta. Eso borra por donde pasa, hasta que se
-       suelta el botón o se levanta el lápiz. */
+       presión y sin apoyar la punta. Eso empieza a borrar por donde pasa. */
     if (!tr) {
       if (botonEnElAire(e)) {
         empezar(punto(e), e.pointerId, true)
@@ -133,7 +132,10 @@ function Tablero({ store, pin }) {
       return
     }
     if (e.pointerId !== tr.pointerId) return
-    if (tr.enElAire && !botonEnElAire(e)) { subir(e); return }
+    /* Ya borrando, sigue mientras el lápiz venga «con clic», toque o no la
+       pantalla: al tocarla, la presión deja de ser cero pero el botón sigue
+       apretado. Termina al soltar el botón (buttons 0) o al levantar. */
+    if (tr.enElAire && ((e.buttons ?? 0) & 1) === 0) { subir(e); return }
     if (!tr.enElAire && !borrador && e.pointerType === 'pen' && botonDeBorrar(e) !== Boolean(tr.datos.b)) {
       const p = punto(e)
       tr.puntos.push(p)
