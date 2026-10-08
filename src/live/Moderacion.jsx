@@ -2,77 +2,103 @@
    MODERAR
    ----------------------------------------------------------------------------
    Dos lugares, una misma lista:
-     · el celular del docente (`conNombres`): privado, ahí sí se ve quién
-       escribió qué, para poder conversarlo después;
+     · el celular o la tablet del docente (`conNombres`): privado, ahí sí se ve
+       quién escribió qué, para poder conversarlo después;
      · el PC (`conNombres` apagado): si el PC es el del proyector, esto lo ve
        el curso, así que sin nombres, y con el aviso de que se está viendo.
 
    PREGUNTAS DEL CURSO (7-oct-2026): anónimas también aquí, aunque sea el
    celular del docente. La gracia es que se atrevan a preguntar.
 
-   CORREGIR (6-oct-2026): en las abiertas, el docente puede arreglar un error
-   chico en el momento. Se guarda aparte del original (sala.js), el proyector
-   muestra solo la versión limpia y el estudiante ve en su celular qué cambió.
+   CORREGIR (6-oct-2026; preguntas y nube el 8-oct): el docente arregla un
+   error en el momento, en las abiertas, en las preguntas y en las palabras de
+   la nube. Se guarda aparte del original (sala.js). El proyector muestra QUÉ
+   SE CORRIGIÓ, tachado y subrayado y sin nombre, para que el curso aprenda
+   del error; el docente puede apagarlo por actividad y mostrar solo la
+   versión limpia. El autor ve en su celular qué cambió.
    ========================================================================== */
 import { useState } from 'react'
-import { LIMITES, abiertas, nube, preguntasDelCurso } from './logic.js'
+import { LIMITES, abiertas, nube, preguntasDelCurso, seVenCorrecciones } from './logic.js'
 import { Cambios } from './Cambios.jsx'
 import { useT } from '../i18n.jsx'
 
-export function Moderacion({ actividad, respuestas, moderacion, participantes, conNombres = false, onPalabra, onAbierta, onCorregir, onPregunta, onRespondida }) {
+const chico = 'rounded-lg px-3 py-1 text-sm font-bold'
+const boton = (texto, clase, onClick) => (
+  <button onClick={onClick} className={`${chico} ${clase}`}>{texto}</button>
+)
+const Titulo = ({ children }) => <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">{children}</h3>
+
+export function Moderacion({
+  actividad, respuestas, moderacion, participantes, conNombres = false,
+  onPalabra, onAbierta, onCorregir, onPregunta, onRespondida, onCorregirPregunta, onCorregirPalabra, onVerCorrecciones,
+}) {
   const t = useT()
+  const interruptor = onVerCorrecciones && (
+    <VerCorrecciones activo={seVenCorrecciones(moderacion)} onCambiar={onVerCorrecciones} />
+  )
+
   if (actividad.tipo === 'preguntas') {
-    return <ModerarPreguntas respuestas={respuestas} moderacion={moderacion} onPregunta={onPregunta} onRespondida={onRespondida} />
+    return (
+      <div className="flex flex-col gap-3">
+        {interruptor}
+        <ModerarPreguntas respuestas={respuestas} moderacion={moderacion} onPregunta={onPregunta} onRespondida={onRespondida} onCorregir={onCorregirPregunta} />
+      </div>
+    )
   }
+
   if (actividad.tipo === 'nube') {
-    const palabras = nube(respuestas, moderacion?.palabras)
+    const palabras = nube(respuestas, moderacion?.palabras, moderacion?.correccionesNube)
     if (!palabras.length) return <p className="text-sm text-slate-500">{t('sinPalabras')}</p>
     return (
-      <ul className="flex flex-col gap-1.5">
-        {palabras.map(p => (
-          <li key={p.clave} className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${p.oculta ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-200'}`}>
-            <span className={`flex-1 min-w-0 truncate font-semibold ${p.oculta ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{p.texto}</span>
-            {p.auto && <span className="text-xs font-bold text-rose-700">{t('filtro')}</span>}
-            <span className="text-sm tabular-nums text-slate-500">{p.cuenta}</span>
-            <button onClick={() => onPalabra(p.clave, p.oculta ? 'mostrar' : 'ocultar')}
-              className={`rounded-lg px-3 py-1 text-sm font-bold border ${p.oculta ? 'border-teal-600 text-teal-700' : 'border-slate-300 text-slate-700'}`}>
-              {p.oculta ? t('mostrar') : t('ocultar')}
-            </button>
-          </li>
-        ))}
-      </ul>
+      <div className="flex flex-col gap-3">
+        {interruptor}
+        <ul className="flex flex-col gap-1.5">
+          {palabras.map(p => (
+            <FilaEditable key={p.clave} unaLinea max={LIMITES.palabra}
+              texto={p.texto} original={p.antes[0]} corregida={p.corregida} tachada={p.oculta} groseria={p.auto}
+              onCorregir={onCorregirPalabra && ((txt) => onCorregirPalabra(p.origenes, txt))}
+              pie={<span className="text-sm tabular-nums text-slate-500">{p.cuenta}</span>}
+              acciones={boton(p.oculta ? t('mostrar') : t('ocultar'),
+                p.oculta ? 'border border-teal-600 text-teal-700' : 'border border-slate-300 text-slate-700',
+                () => onPalabra(p.clave, p.oculta ? 'mostrar' : 'ocultar'))} />
+          ))}
+        </ul>
+      </div>
     )
   }
 
   if (actividad.tipo === 'abierta') {
     const { pendientes, aprobadas, descartadas } = abiertas(respuestas, moderacion?.abiertas, participantes, moderacion?.correcciones)
-    const Fila = ({ r, acciones }) => (
-      <FilaAbierta r={r} conNombres={conNombres} acciones={acciones} onCorregir={onCorregir} />
-    )
-    const boton = (texto, clase, onClick) => (
-      <button onClick={onClick} className={`rounded-lg px-3 py-1 text-sm font-bold ${clase}`}>{texto}</button>
+    /* Una función y no un componente: definido aquí adentro, React lo trataría
+       como uno nuevo en cada respuesta que llega y vaciaría lo que se corrige. */
+    const fila = (r, acciones) => (
+      <FilaEditable key={r.pid} texto={r.texto} original={r.original} corregida={r.corregida} groseria={r.groseria}
+        onCorregir={onCorregir && ((txt) => onCorregir(r.pid, txt, r.original))}
+        pie={conNombres && <span className="text-xs text-slate-500 truncate">{r.nombre}</span>}
+        acciones={acciones} />
     )
     return (
       <div className="flex flex-col gap-4">
+        {interruptor}
         <section>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">{t('porRevisar')} · {pendientes.length}</h3>
+          <Titulo>{t('porRevisar')} · {pendientes.length}</Titulo>
           {pendientes.length ? (
             <ul className="flex flex-col gap-1.5">
               {pendientes.map(r => (
-                <Fila key={r.pid} r={r} acciones={<>
+                fila(r, <>
                   {boton(t('descartar'), 'border border-slate-300 text-slate-700', () => onAbierta(r.pid, false))}
                   {boton(t('aprobar'), 'bg-teal-700 text-white', () => onAbierta(r.pid, true))}
-                </>} />
+                </>)
               ))}
             </ul>
           ) : <p className="text-sm text-slate-500">{t('sinPendientes')}</p>}
         </section>
         {aprobadas.length > 0 && (
           <section>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">{t('enPantalla')} · {aprobadas.length}</h3>
+            <Titulo>{t('enPantalla')} · {aprobadas.length}</Titulo>
             <ul className="flex flex-col gap-1.5">
               {aprobadas.map(r => (
-                <Fila key={r.pid} r={r} acciones={boton(t('quitar'), 'border border-slate-300 text-slate-700', () => onAbierta(r.pid, false))} />
+                fila(r, boton(t('quitar'), 'border border-slate-300 text-slate-700', () => onAbierta(r.pid, false)))
               ))}
             </ul>
           </section>
@@ -82,7 +108,7 @@ export function Moderacion({ actividad, respuestas, moderacion, participantes, c
             <summary className="text-xs font-bold uppercase tracking-wider text-slate-500 cursor-pointer">{t('descartadas')} · {descartadas.length}</summary>
             <ul className="mt-1.5 flex flex-col gap-1.5">
               {descartadas.map(r => (
-                <Fila key={r.pid} r={r} acciones={boton(t('aprobar'), 'border border-teal-600 text-teal-700', () => onAbierta(r.pid, true))} />
+                fila(r, boton(t('aprobar'), 'border border-teal-600 text-teal-700', () => onAbierta(r.pid, true)))
               ))}
             </ul>
           </details>
@@ -94,50 +120,57 @@ export function Moderacion({ actividad, respuestas, moderacion, participantes, c
   return <p className="text-sm text-slate-500">{t('sinModeracion')}</p>
 }
 
-function ModerarPreguntas({ respuestas, moderacion, onPregunta, onRespondida }) {
+/* El interruptor de cada actividad: ¿el curso ve qué se corrigió, o solo la
+   versión limpia? */
+function VerCorrecciones({ activo, onCambiar }) {
+  const t = useT()
+  return (
+    <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 cursor-pointer">
+      <input type="checkbox" checked={activo} onChange={(e) => onCambiar(e.target.checked)} className="mt-1 w-4 h-4 accent-teal-700" />
+      <span className="text-sm">
+        <span className="font-bold text-slate-800">{t('cursoVeCorrecciones')}</span>
+        <span className="block text-xs text-slate-500">{t('cursoVeCorreccionesAyuda')}</span>
+      </span>
+    </label>
+  )
+}
+
+function ModerarPreguntas({ respuestas, moderacion, onPregunta, onRespondida, onCorregir }) {
   const t = useT()
   const { pendientes, aprobadas, descartadas } = preguntasDelCurso(respuestas, moderacion)
-  const boton = (texto, clase, onClick) => (
-    <button onClick={onClick} className={`rounded-lg px-3 py-1 text-sm font-bold ${clase}`}>{texto}</button>
-  )
-  const Fila = ({ q, children }) => (
-    <li className={`rounded-lg border px-3 py-2 ${q.groseria ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-white'}`}>
-      <p className={`font-semibold break-words ${q.respondida ? 'text-slate-500' : 'text-slate-800'}`}>{q.texto}</p>
-      <div className="mt-1.5 flex flex-wrap items-center gap-2">
-        {q.decision === true && <span className="text-xs font-bold text-slate-500 tabular-nums">▲ {t('votosN', q.votos)}</span>}
-        {q.groseria && <span className="text-xs font-bold text-rose-700">{t('filtro')}</span>}
-        <span className="flex-1" />
-        {children}
-      </div>
-    </li>
+  const fila = (q, children) => (
+    <FilaEditable key={q.qid} texto={q.texto} original={q.original} corregida={q.corregida} groseria={q.groseria} apagada={q.respondida}
+      onCorregir={onCorregir && ((txt) => onCorregir(q.qid, txt, q.original))}
+      pie={q.decision === true && <span className="text-xs font-bold text-slate-500 tabular-nums">▲ {t('votosN', q.votos)}</span>}
+      acciones={children} />
   )
   if (!pendientes.length && !aprobadas.length && !descartadas.length) return <p className="text-sm text-slate-500">{t('sinPreguntas')}</p>
   return (
     <div className="flex flex-col gap-4">
       <section>
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">{t('porRevisar')} · {pendientes.length}</h3>
+        <Titulo>{t('porRevisar')} · {pendientes.length}</Titulo>
         {pendientes.length ? (
           <ul className="flex flex-col gap-1.5">
             {pendientes.map(q => (
-              <Fila key={q.qid} q={q}>
+              fila(q, <>
                 {boton(t('descartar'), 'border border-slate-300 text-slate-700', () => onPregunta(q.qid, false))}
                 {boton(t('aprobar'), 'bg-teal-700 text-white', () => onPregunta(q.qid, true))}
-              </Fila>
+              </>)
             ))}
           </ul>
         ) : <p className="text-sm text-slate-500">{t('sinPendientes')}</p>}
       </section>
       {aprobadas.length > 0 && (
         <section>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">{t('enPantalla')} · {aprobadas.length}</h3>
+          <Titulo>{t('enPantalla')} · {aprobadas.length}</Titulo>
           <ul className="flex flex-col gap-1.5">
             {aprobadas.map(q => (
-              <Fila key={q.qid} q={q}>
+              fila(q, <>
                 {boton(t('quitar'), 'border border-slate-300 text-slate-700', () => onPregunta(q.qid, false))}
                 {q.respondida
                   ? boton(t('desmarcarRespondida'), 'border border-slate-300 text-slate-700', () => onRespondida(q.qid, false))
                   : boton(`✓ ${t('marcarRespondida')}`, 'bg-teal-700 text-white', () => onRespondida(q.qid, true))}
-              </Fila>
+              </>)
             ))}
           </ul>
         </section>
@@ -147,9 +180,7 @@ function ModerarPreguntas({ respuestas, moderacion, onPregunta, onRespondida }) 
           <summary className="text-xs font-bold uppercase tracking-wider text-slate-500 cursor-pointer">{t('descartadas')} · {descartadas.length}</summary>
           <ul className="mt-1.5 flex flex-col gap-1.5">
             {descartadas.map(q => (
-              <Fila key={q.qid} q={q}>
-                {boton(t('aprobar'), 'border border-teal-600 text-teal-700', () => onPregunta(q.qid, true))}
-              </Fila>
+              fila(q, boton(t('aprobar'), 'border border-teal-600 text-teal-700', () => onPregunta(q.qid, true)))
             ))}
           </ul>
         </details>
@@ -158,56 +189,50 @@ function ModerarPreguntas({ respuestas, moderacion, onPregunta, onRespondida }) 
   )
 }
 
-/* UNA RESPUESTA ABIERTA, con su corrección. Va como componente propio y no
-   dentro de Moderacion: el campo de corregir tiene estado, y definido adentro
-   se rearmaba —y se vaciaba— cada vez que llegaba otra respuesta. */
-function FilaAbierta({ r, conNombres, acciones, onCorregir }) {
+/* UNA FILA QUE SE PUEDE CORREGIR: una respuesta abierta, una pregunta o una
+   palabra de la nube. Va como componente propio y no dentro de Moderacion: el
+   campo de corregir tiene estado, y definido adentro se rearmaba —y se
+   vaciaba— cada vez que llegaba otra respuesta.
+   `onCorregir(texto)`: con texto vacío se quita la corrección. */
+function FilaEditable({ texto, original, corregida, groseria, tachada = false, apagada = false, unaLinea = false, max = LIMITES.abierta, onCorregir, pie, acciones }) {
   const t = useT()
   const [editando, setEditando] = useState(false)
-  const [texto, setTexto] = useState('')
-  const abrir = () => { setTexto(r.texto); setEditando(true) }
-  const guardar = () => { onCorregir?.(r.pid, texto, r.original); setEditando(false) }
-  const chico = 'rounded-lg px-3 py-1 text-sm font-bold'
+  const [nuevo, setNuevo] = useState('')
+  const abrir = () => { setNuevo(texto); setEditando(true) }
+  const guardar = () => { onCorregir?.(nuevo); setEditando(false) }
+  /* Enter guarda y Esc cancela: se corrige en el momento, con el curso
+     esperando, así que nada de buscar botones. */
+  const teclas = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); guardar() }
+    if (e.key === 'Escape') { e.preventDefault(); setEditando(false) }
+  }
+  const campo = 'w-full rounded-lg border-2 border-teal-600 px-2 py-1.5 font-semibold text-slate-800 outline-none'
 
   return (
-    <li className={`rounded-lg border px-3 py-2 ${r.groseria ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-white'}`}>
+    <li className={`rounded-lg border px-3 py-2 ${groseria ? 'border-rose-200 bg-rose-50' : tachada ? 'border-slate-200 bg-slate-50' : 'border-slate-200 bg-white'}`}>
       {editando ? (
         <>
-          {/* Enter guarda y Esc cancela: se corrige en el momento, con el curso
-              esperando, así que nada de buscar botones. */}
-          <textarea value={texto} maxLength={LIMITES.abierta} rows={3} autoFocus aria-label={t('corregir')}
-            onChange={(e) => setTexto(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); guardar() }
-              if (e.key === 'Escape') { e.preventDefault(); setEditando(false) }
-            }}
-            className="w-full rounded-lg border-2 border-teal-600 px-2 py-1.5 font-semibold text-slate-800 outline-none" />
+          {unaLinea
+            ? <input value={nuevo} maxLength={max} autoFocus aria-label={t('corregir')} onChange={(e) => setNuevo(e.target.value)} onKeyDown={teclas} className={campo} />
+            : <textarea value={nuevo} maxLength={max} rows={3} autoFocus aria-label={t('corregir')} onChange={(e) => setNuevo(e.target.value)} onKeyDown={teclas} className={campo} />}
           <div className="mt-1.5 flex items-center gap-2">
             <span className="text-xs text-slate-500">{t('corregirAyuda')}</span>
             <span className="flex-1" />
-            <button onClick={() => setEditando(false)} className={`${chico} border border-slate-300 text-slate-700`}>{t('cancelar')}</button>
-            <button onClick={guardar} className={`${chico} bg-teal-700 text-white`}>{t('guardar')}</button>
+            {boton(t('cancelar'), 'border border-slate-300 text-slate-700', () => setEditando(false))}
+            {boton(t('guardar'), 'bg-teal-700 text-white', guardar)}
           </div>
         </>
       ) : (
         <>
-          {r.corregida
-            ? <Cambios antes={r.original} despues={r.texto} className="font-semibold text-slate-800" />
-            : <p className="font-semibold text-slate-800 break-words">{r.texto}</p>}
+          {corregida
+            ? <Cambios antes={original} despues={texto} className={`font-semibold ${apagada ? 'text-slate-500' : 'text-slate-800'} ${tachada ? 'opacity-60' : ''}`} />
+            : <p className={`font-semibold break-words ${tachada ? 'text-slate-500 line-through' : apagada ? 'text-slate-500' : 'text-slate-800'}`}>{texto}</p>}
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            {conNombres && <span className="text-xs text-slate-500 truncate">{r.nombre}</span>}
-            {r.groseria && <span className="text-xs font-bold text-rose-700">{t('filtro')}</span>}
+            {pie}
+            {groseria && <span className="text-xs font-bold text-rose-700">{t('filtro')}</span>}
             <span className="flex-1" />
-            {onCorregir && (
-              <button onClick={abrir} title={t('corregir')} className={`${chico} border border-slate-300 text-slate-700`}>
-                ✎ {t('corregir')}
-              </button>
-            )}
-            {onCorregir && r.corregida && (
-              <button onClick={() => onCorregir(r.pid, '', r.original)} className={`${chico} border border-slate-300 text-slate-700`}>
-                {t('quitarCorreccion')}
-              </button>
-            )}
+            {onCorregir && boton(`✎ ${t('corregir')}`, 'border border-slate-300 text-slate-700', abrir)}
+            {onCorregir && corregida && boton(t('quitarCorreccion'), 'border border-slate-300 text-slate-700', () => onCorregir(''))}
             {acciones}
           </div>
         </>

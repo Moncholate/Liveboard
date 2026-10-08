@@ -119,7 +119,7 @@ export const palabrasDe = (lista) => {
  * solo si el docente la restaura. Así una palabra fea no alcanza a proyectarse
  * en el segundo que tarda en reaccionar.
  */
-export const nube = (respuestas, moderacion = {}) => {
+export const nube = (respuestas, moderacion = {}, correcciones = {}) => {
   const grupos = new Map()
   for (const r of Object.values(respuestas || {})) {
     for (const texto of palabrasDe(r?.palabras)) {
@@ -130,18 +130,41 @@ export const nube = (respuestas, moderacion = {}) => {
       grupos.set(clave, g)
     }
   }
-  return [...grupos.values()]
-    .map(g => {
-      /* Se muestra la forma que más gente escribió: si 5 pusieron «Revolución»
-         y 1 «revolucion», sale con tilde. */
-      const texto = [...g.formas.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0]
-      const auto = esGroseria(texto)
-      const decision = moderacion[g.clave]
+  /* CORREGIR UNA PALABRA (8-oct-2026): `correcciones` = { clave escrita: texto
+     corregido }. La palabra corregida se suma a la que ya estaba bien escrita:
+     2 «beatifull» corregidas + 3 «beautiful» = 5 «beautiful». `origenes` son
+     las claves escritas que quedaron en cada palabra (para corregir o quitar
+     la corrección), y `antes` lo que se escribió mal, para mostrar el cambio. */
+  const finales = new Map()
+  for (const g of grupos.values()) {
+    /* Se muestra la forma que más gente escribió: si 5 pusieron «Revolución»
+       y 1 «revolucion», sale con tilde. */
+    const escrito = [...g.formas.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0]
+    const corregido = limpiarPalabra(correcciones?.[g.clave])
+    const valeLaCorreccion = corregido && claveDePalabra(corregido) && corregido !== escrito
+    const texto = valeLaCorreccion ? corregido : escrito
+    const clave = claveDePalabra(texto)
+    const f = finales.get(clave) || { clave, texto, cuenta: 0, origenes: [], antes: [], bienEscrita: false }
+    f.cuenta += g.cuenta
+    f.origenes.push(g.clave)
+    if (valeLaCorreccion) f.antes.push(escrito)
+    else if (!f.bienEscrita) { f.texto = escrito; f.bienEscrita = true }
+    finales.set(clave, f)
+  }
+  return [...finales.values()]
+    .map(f => {
+      const auto = esGroseria(f.texto) || f.antes.some(esGroseria)
+      const decision = moderacion?.[f.clave]
       const oculta = decision === 'ocultar' || (auto && decision !== 'mostrar')
-      return { clave: g.clave, texto, cuenta: g.cuenta, auto, oculta }
+      return { clave: f.clave, texto: f.texto, cuenta: f.cuenta, auto, oculta, origenes: f.origenes, antes: f.antes, corregida: f.antes.length > 0 }
     })
     .sort((a, b) => b.cuenta - a.cuenta || a.texto.localeCompare(b.texto))
 }
+
+/** ¿El proyector muestra qué se corrigió (tachado y subrayado)? Sí, salvo que
+    el docente lo apague en esa actividad: el curso aprende viendo el error
+    arreglado, y como no lleva nombre, no expone a nadie (8-oct-2026). */
+export const seVenCorrecciones = (moderacion) => moderacion?.verCorrecciones !== false
 
 /** Tamaño de una palabra en la nube, en rem: la más repetida es la más grande. */
 export const tamanoEnNube = (cuenta, maximo) => {
@@ -230,18 +253,23 @@ export const preguntasDelCurso = (respuestas, moderacion = {}, yo = null) => {
   }
   for (const [pid, r] of Object.entries(respuestas || {})) {
     for (const [qid, q] of Object.entries(r?.preguntas || {})) {
-      const texto = limpiarAbierta(q?.texto)
-      if (!texto) continue
+      const original = limpiarAbierta(q?.texto)
+      if (!original) continue
       const d = moderacion?.preguntas?.[qid]
       const quienes = (votos.get(qid) || []).filter(v => v !== pid)
+      /* Corregida por el docente, como las abiertas (correccionVigente). */
+      const c = correccionVigente(moderacion?.correccionesPreguntas?.[qid], original)
+      const texto = c || original
       lista.push({
         qid,
         texto,
+        original,
+        corregida: Boolean(c),
         at: typeof q?.at === 'number' ? q.at : 0,
         votos: quienes.length,
         decision: d === true ? true : d === false ? false : null,
         respondida: moderacion?.respondidas?.[qid] === true,
-        groseria: esGroseria(texto),
+        groseria: esGroseria(original),
         mia: yo != null && pid === yo,
         votada: yo != null && quienes.includes(yo),
       })

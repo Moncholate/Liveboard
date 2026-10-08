@@ -21,9 +21,14 @@
                             abiertas: { pid: true | false },
                             correcciones: { pid: { texto, de } },
                             preguntas: { qid: true | false },
-                            respondidas: { qid: true } } }
+                            respondidas: { qid: true },
+                            correccionesPreguntas: { qid: { texto, de } },
+                            correccionesNube: { clave escrita: texto },
+                            verCorrecciones: false? } }
                    (la corrección del docente; `de` = el texto que corrigió,
-                   para que caduque sola si el estudiante cambia el suyo)
+                   para que caduque sola si el estudiante cambia el suyo.
+                   verCorrecciones = false si el curso ve solo la versión
+                   limpia; si no está, ve qué se corrigió)
 
    Las respuestas van bajo el id de la actividad (aid) y no bajo su posición:
    si el docente reordena o borra una, cada respuesta sigue con su pregunta.
@@ -32,12 +37,16 @@
    el proyector y el celular con que se modera. Dos copias de «siguiente»
    terminan haciendo cosas distintas.
    ========================================================================== */
-import { limpiarAbierta, limpiarActividad } from './logic.js'
+import { claveDePalabra, limpiarAbierta, limpiarActividad, limpiarPalabra } from './logic.js'
 
 export const raiz = (pin) => `boards/${pin}`
 
 export const accionesDeSala = (store, pin) => {
   const base = raiz(pin)
+  const corregirTexto = (ruta, texto, de) => {
+    const limpio = limpiarAbierta(texto)
+    return limpio && limpio !== limpiarAbierta(de) ? store.set(ruta, { texto: limpio, de: limpiarAbierta(de) }) : store.remove(ruta)
+  }
   /* Cada actividad arranca abierta y con los resultados a la vista. */
   const mostrar = (idx) => store.set(`${base}/estado`, { idx, abierta: true, resultados: true })
   return {
@@ -51,11 +60,17 @@ export const accionesDeSala = (store, pin) => {
     moderarPalabra: (aid, clave, decision) => store.set(`${base}/moderacion/${aid}/palabras/${clave}`, decision),
     decidirAbierta: (aid, pid, decision) => store.set(`${base}/moderacion/${aid}/abiertas/${pid}`, decision),
     /* Sin texto, se quita la corrección y vuelve a verse el original. */
-    corregirAbierta: (aid, pid, texto, de) => {
-      const ruta = `${base}/moderacion/${aid}/correcciones/${pid}`
-      const limpio = limpiarAbierta(texto)
-      return limpio && limpio !== limpiarAbierta(de) ? store.set(ruta, { texto: limpio, de: limpiarAbierta(de) }) : store.remove(ruta)
+    corregirAbierta: (aid, pid, texto, de) => corregirTexto(`${base}/moderacion/${aid}/correcciones/${pid}`, texto, de),
+    corregirPregunta: (aid, qid, texto, de) => corregirTexto(`${base}/moderacion/${aid}/correccionesPreguntas/${qid}`, texto, de),
+    /* Una palabra de la nube puede venir de varias escritas («beatifull»,
+       «beautifull»): la corrección se anota para todas. Sin texto, se quita. */
+    corregirPalabra: (aid, origenes, texto) => {
+      const limpio = limpiarPalabra(texto)
+      /* Ojo: «cancion» → «canción» es la misma clave y vale igual (la tilde). */
+      const cambios = Object.fromEntries(origenes.map(c => [c, limpio && claveDePalabra(limpio) ? limpio : null]))
+      return store.update(`${base}/moderacion/${aid}/correccionesNube`, cambios)
     },
+    verCorrecciones: (aid, si) => store.set(`${base}/moderacion/${aid}/verCorrecciones`, si ? null : false),
     decidirPregunta: (aid, qid, decision) => store.set(`${base}/moderacion/${aid}/preguntas/${qid}`, decision),
     marcarRespondida: (aid, qid, si) => store.set(`${base}/moderacion/${aid}/respondidas/${qid}`, si ? true : null),
     cerrarSala: () => store.remove(base),

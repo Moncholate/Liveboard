@@ -28,10 +28,10 @@ export default function Mod({ pin, clave }) {
   if (!store || meta === undefined) return <Center>{traducir(idioma, 'cargando')}</Center>
   if (!meta) return <Center>{traducir(idioma, 'salaNoExiste')}</Center>
   if (!clave || meta.clave !== clave) return <Center>{traducir(idioma, 'enlaceNoSirve')}</Center>
-  return <ProveedorIdioma value={idioma}><Panel store={store} pin={pin} /></ProveedorIdioma>
+  return <ProveedorIdioma value={idioma}><Panel store={store} pin={pin} clave={clave} /></ProveedorIdioma>
 }
 
-function Panel({ store, pin }) {
+function Panel({ store, pin, clave }) {
   const t = useT()
   const base = raiz(pin)
   const estado = useValue(store, `${base}/estado`)
@@ -51,9 +51,12 @@ function Panel({ store, pin }) {
         <span className="text-xs font-bold text-teal-800 bg-teal-50 rounded-full px-2 py-0.5">{t('docente')}</span>
         <span className="flex-1" />
         <span className="text-sm text-slate-600">{t('conectados', conectados(online))}</span>
+        {/* A la pizarra con la misma clave: en la tablet se pasa de escribir a
+            moderar y de vuelta sin escanear nada. */}
+        <a href={`#/pizarra?pin=${pin}&clave=${clave}`} className="rounded-lg border border-slate-300 px-2.5 py-1 text-sm font-bold text-slate-700">{t('pizarra')}</a>
       </header>
 
-      <main className="flex-1 p-4 flex flex-col gap-4 max-w-md w-full mx-auto">
+      <main className="flex-1 p-4 flex flex-col gap-4 max-w-md lg:max-w-2xl w-full mx-auto">
         {!actividad ? (
           <div className="flex flex-col gap-3">
             <p className="text-slate-600">{t('preparandoElige')}</p>
@@ -111,7 +114,10 @@ function EnVivo({ store, base, idx, total, actividad, estado, participantes, acc
             onAbierta={(pid, d) => acciones.decidirAbierta(aid, pid, d)}
             onCorregir={(pid, texto, de) => acciones.corregirAbierta(aid, pid, texto, de)}
             onPregunta={(qid, d) => acciones.decidirPregunta(aid, qid, d)}
-            onRespondida={(qid, si) => acciones.marcarRespondida(aid, qid, si)} />
+            onRespondida={(qid, si) => acciones.marcarRespondida(aid, qid, si)}
+            onCorregirPregunta={(qid, texto, de) => acciones.corregirPregunta(aid, qid, texto, de)}
+            onCorregirPalabra={(origenes, texto) => acciones.corregirPalabra(aid, origenes, texto)}
+            onVerCorrecciones={(si) => acciones.verCorrecciones(aid, si)} />
         </section>
       ) : (
         <section className="rounded-2xl bg-white border border-slate-200 p-4">
@@ -124,7 +130,7 @@ function EnVivo({ store, base, idx, total, actividad, estado, participantes, acc
       {actividad.tipo === 'nube' && (
         <section className="rounded-2xl bg-white border border-slate-200 p-4">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">{t('asiSeVe')}</p>
-          <Nube respuestas={respuestas} moderacion={moderacion?.palabras} chico />
+          <Nube respuestas={respuestas} moderacion={moderacion?.palabras} correcciones={moderacion?.correccionesNube} chico />
         </section>
       )}
     </>

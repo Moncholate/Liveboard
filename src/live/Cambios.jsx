@@ -3,8 +3,9 @@
    ----------------------------------------------------------------------------
    El texto del estudiante con la corrección encima, como se corrige en papel:
    lo que sobraba, tachado; lo que faltaba, subrayado. Lo ven el estudiante en
-   su celular y el docente al moderar. NUNCA el proyector: frente al curso va
-   solo la versión limpia (Resultados.jsx), para no exponer a nadie.
+   su celular, el docente al moderar y, desde el 8-oct-2026, también el curso
+   en el proyector, siempre sin nombre, para aprender del error (el docente
+   puede apagarlo por actividad y mostrar solo la versión limpia).
 
    El color no es la única señal (DUA): tachado y subrayado se leen igual sin
    distinguir el rojo del verde.

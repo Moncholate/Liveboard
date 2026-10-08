@@ -21,7 +21,7 @@ import { useStore, useUser, useValue } from '../net/hooks.js'
 import { isOnline } from '../net/store.js'
 import { Button, Center, Logo, urlParaUnirse } from '../ui.jsx'
 import { ProveedorIdioma, SelectorIdioma, idiomaDelNavegador, traducir, useT, valido } from '../i18n.jsx'
-import { abiertas, cuantosRespondieron, idAlAzar, pinAlAzar, preguntasDelCurso, problemaDe } from '../live/logic.js'
+import { abiertas, cuantosRespondieron, idAlAzar, pinAlAzar, preguntasDelCurso, problemaDe, seVenCorrecciones } from '../live/logic.js'
 import { accionesDeSala, comoLista, conectados, raiz } from '../live/sala.js'
 import {
   actividadesParaSala, idMaterialNuevo, listaDeMateriales, materialParaGuardar, rutaMaterial, rutaMateriales,
@@ -439,7 +439,10 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
             onAbierta={(pid, d) => acciones.decidirAbierta(aid, pid, d)}
             onCorregir={(pid, texto, de) => acciones.corregirAbierta(aid, pid, texto, de)}
             onPregunta={(qid, d) => acciones.decidirPregunta(aid, qid, d)}
-            onRespondida={(qid, si) => acciones.marcarRespondida(aid, qid, si)} />
+            onRespondida={(qid, si) => acciones.marcarRespondida(aid, qid, si)}
+            onCorregirPregunta={(qid, texto, de) => acciones.corregirPregunta(aid, qid, texto, de)}
+            onCorregirPalabra={(origenes, texto) => acciones.corregirPalabra(aid, origenes, texto)}
+            onVerCorrecciones={(si) => acciones.verCorrecciones(aid, si)} />
         </aside>
       )}
     </main>
@@ -448,12 +451,12 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
 
 function Resultados({ actividad, respuestas, moderacion, sobreFondo = false }) {
   switch (actividad.tipo) {
-    case 'nube': return <Nube respuestas={respuestas} moderacion={moderacion?.palabras} />
+    case 'nube': return <Nube respuestas={respuestas} moderacion={moderacion?.palabras} correcciones={moderacion?.correccionesNube} />
     case 'encuesta': return <div className="w-full max-w-4xl mx-auto"><Encuesta actividad={actividad} respuestas={respuestas} /></div>
     case 'escala': return <div className="w-full max-w-4xl mx-auto"><Escala respuestas={respuestas} /></div>
-    case 'abierta': return <Abiertas aprobadas={abiertas(respuestas, moderacion?.abiertas, {}, moderacion?.correcciones).aprobadas} sobreFondo={sobreFondo} />
+    case 'abierta': return <Abiertas aprobadas={abiertas(respuestas, moderacion?.abiertas, {}, moderacion?.correcciones).aprobadas} sobreFondo={sobreFondo} verCambios={seVenCorrecciones(moderacion)} />
     case 'ranking': return <div className="w-full max-w-4xl mx-auto"><Ranking actividad={actividad} respuestas={respuestas} /></div>
-    case 'preguntas': return <Preguntas aprobadas={preguntasDelCurso(respuestas, moderacion).aprobadas} sobreFondo={sobreFondo} />
+    case 'preguntas': return <Preguntas aprobadas={preguntasDelCurso(respuestas, moderacion).aprobadas} sobreFondo={sobreFondo} verCambios={seVenCorrecciones(moderacion)} />
     default: return null
   }
 }

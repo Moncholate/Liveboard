@@ -38,10 +38,10 @@ export default function Pizarra({ pin, clave }) {
   if (!store || meta === undefined) return <Center>{traducir(idioma, 'cargando')}</Center>
   if (!meta) return <Center>{traducir(idioma, 'salaNoExiste')}</Center>
   if (!clave || meta.clave !== clave) return <Center>{traducir(idioma, 'enlaceNoSirvePizarra')}</Center>
-  return <ProveedorIdioma value={idioma}><Tablero store={store} pin={pin} /></ProveedorIdioma>
+  return <ProveedorIdioma value={idioma}><Tablero store={store} pin={pin} clave={clave} /></ProveedorIdioma>
 }
 
-function Tablero({ store, pin }) {
+function Tablero({ store, pin, clave }) {
   const t = useT()
   const ruta = rutaPizarra(pin)
   const vista = vistaValida(useValue(store, `${ruta}/vista`))
@@ -310,6 +310,13 @@ function Tablero({ store, pin }) {
         onPointerDown={bajar} onPointerMove={mover} onPointerUp={levantar} onPointerCancel={levantar} onWheel={rueda}
         onPointerLeave={(e) => { setCirculo(null); if (trazo.current?.enElAire) subir(e) }}
         onContextMenu={(e) => e.preventDefault()}>
+        {/* MODERAR DESDE LA TABLET (8-oct-2026): lleva a la misma vista del
+            celular, con la misma clave, y de ahí se vuelve con «Pizarra». */}
+        <a href={`#/mod?pin=${pin}&clave=${clave}`} onPointerDown={(e) => e.stopPropagation()}
+          className="absolute bottom-3 left-5 h-11 px-3 rounded-xl border font-bold shadow grid place-items-center"
+          style={{ backgroundColor: 'rgba(255, 255, 255, 0.92)', color: '#334155', borderColor: '#cbd5e1' }}>
+          ✎ {t('moderar')}
+        </a>
         {/* Flota sobre el papel y no en la barra: si la barra cambia de largo
             se parte en dos líneas y el papel se achica a mitad de clase. */}
         {y > 0 && (

@@ -198,6 +198,10 @@ export const TEXTOS = {
   profeCompartioAyuda: { es: 'Descárgala en PDF para repasar. No lleva nombres.', en: 'Download it as a PDF to review. It has no names.' },
   verClase: { es: 'Verla en el navegador', en: 'View it in the browser' },
 
+  // Corregir frente al curso
+  cursoVeCorrecciones: { es: 'El curso ve qué se corrigió', en: 'The class sees what was corrected' },
+  cursoVeCorreccionesAyuda: { es: 'Tachado y subrayado en el proyector, sin nombres. Apágalo para mostrar solo la versión corregida.', en: 'Struck through and underlined on the projector, with no names. Turn it off to show only the corrected version.' },
+
   // Celular del docente
   docente: { es: 'Docente', en: 'Teacher' },
   salaNoExiste: { es: 'Esta sala ya no existe.', en: 'This room no longer exists.' },

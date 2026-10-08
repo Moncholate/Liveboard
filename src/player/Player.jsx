@@ -390,7 +390,10 @@ function PreguntarYVotar({ store, base, pid, actividad, abierta }) {
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('tusPreguntas')}</h2>
           {mias.map(q => (
             <div key={q.qid} className="rounded-2xl bg-white border border-slate-200 p-3">
-              <p className="font-semibold text-slate-900 break-words">{q.texto}</p>
+              {q.corregida
+                ? <Cambios antes={q.original} despues={q.texto} className="font-semibold text-slate-900" />
+                : <p className="font-semibold text-slate-900 break-words">{q.texto}</p>}
+              {q.corregida && <p className="mt-1 text-sm font-bold text-teal-800">✎ {t('profeCorrigio')}</p>}
               <div className="mt-1.5 flex items-center gap-2">
                 <span className={`flex-1 text-sm font-bold ${q.decision === true ? 'text-teal-800' : 'text-slate-500'}`}>{estado(q)}</span>
                 {abierta && q.decision === null && (

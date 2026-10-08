@@ -6,6 +6,7 @@
    ========================================================================== */
 import { ALTERNATIVAS, conteoEncuesta, estadisticaEscala, nube, resultadoRanking, tamanoEnNube } from './logic.js'
 import { useT } from '../i18n.jsx'
+import { Cambios } from './Cambios.jsx'
 
 /* Colores de la nube: los de las alternativas, en tonos que se leen sobre
    blanco. Se asignan por la clave, no por la posición, para que una palabra no
@@ -13,9 +14,9 @@ import { useT } from '../i18n.jsx'
 const COLORES_NUBE = ['text-violet-700', 'text-teal-700', 'text-orange-700', 'text-pink-700', 'text-sky-700', 'text-slate-800']
 const colorDe = (clave) => COLORES_NUBE[[...clave].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) % 997, 7) % COLORES_NUBE.length]
 
-export function Nube({ respuestas, moderacion, chico = false }) {
+export function Nube({ respuestas, moderacion, correcciones, chico = false }) {
   const t = useT()
-  const visibles = nube(respuestas, moderacion).filter(p => !p.oculta)
+  const visibles = nube(respuestas, moderacion, correcciones).filter(p => !p.oculta)
   if (!visibles.length) return <Vacio chico={chico}>{t('vacioNube')}</Vacio>
   const max = visibles[0].cuenta
   /* La más repetida al centro: se reparten alternando a cada lado. */
@@ -96,18 +97,19 @@ export function Escala({ respuestas, chico = false }) {
 /* Solo las aprobadas, y sin nombres. */
 /* `sobreFondo`: las tarjetas van directo sobre el fondo del proyector, sin
    panel, así que llevan sombra para despegarse de él.
-   Una respuesta CORREGIDA se ve ya corregida, limpia, con un ✎ discreto: qué
-   cambió lo ve solo su autor en el celular. Frente al curso nadie queda
-   expuesto por un error. */
-export function Abiertas({ aprobadas, chico = false, sobreFondo = false }) {
+   Una respuesta CORREGIDA muestra qué cambió, tachado y subrayado (8-oct-2026:
+   el docente quiere que el curso aprenda del error; como no lleva nombre, no
+   expone a nadie). Con `verCambios` apagado se ve solo la versión limpia, con
+   un ✎ discreto. */
+export function Abiertas({ aprobadas, chico = false, sobreFondo = false, verCambios = true }) {
   const t = useT()
   if (!aprobadas.length) return <Vacio chico={chico}>{t('vacioAbiertas')}</Vacio>
   return (
     <div className={`w-full grid ${chico ? 'gap-2' : 'gap-4 sm:grid-cols-2 xl:grid-cols-3'}`}>
       {aprobadas.map(r => (
         <div key={r.pid} className={`relative rounded-2xl bg-white border border-slate-200 font-semibold text-slate-800 animate-pop ${chico ? 'p-2 text-sm' : 'p-5 text-2xl'} ${sobreFondo ? 'shadow-lg' : ''}`}>
-          {r.texto}
-          {r.corregida && (
+          {r.corregida && verCambios ? <Cambios antes={r.original} despues={r.texto} /> : r.texto}
+          {r.corregida && !verCambios && (
             <span title={t('corregida')} aria-label={t('corregida')}
               className={`absolute text-slate-400 font-normal ${chico ? 'top-1 right-1.5 text-xs' : 'top-2 right-3 text-base'}`}>✎</span>
           )}
@@ -152,7 +154,7 @@ export function Ranking({ actividad, respuestas, chico = false }) {
 /* Las preguntas aprobadas, sin nombres, de más a menos votadas. Las ya
    respondidas quedan al final, atenuadas: siguen ahí por si alguien quiere
    volver a ellas, pero no compiten con las que faltan. */
-export function Preguntas({ aprobadas, chico = false, sobreFondo = false }) {
+export function Preguntas({ aprobadas, chico = false, sobreFondo = false, verCambios = true }) {
   const t = useT()
   if (!aprobadas.length) return <Vacio chico={chico}>{t('vacioPreguntas')}</Vacio>
   return (
@@ -164,7 +166,9 @@ export function Preguntas({ aprobadas, chico = false, sobreFondo = false }) {
             {q.votos}
             <span className="sr-only">{t('votosN', q.votos)}</span>
           </span>
-          <p className={`flex-1 min-w-0 break-words font-semibold ${q.respondida ? 'text-slate-500' : 'text-slate-800'} ${chico ? 'text-sm' : 'text-2xl'}`}>{q.texto}</p>
+          {q.corregida && verCambios
+            ? <Cambios antes={q.original} despues={q.texto} className={`flex-1 min-w-0 font-semibold ${q.respondida ? 'text-slate-500' : 'text-slate-800'} ${chico ? 'text-sm' : 'text-2xl'}`} />
+            : <p className={`flex-1 min-w-0 break-words font-semibold ${q.respondida ? 'text-slate-500' : 'text-slate-800'} ${chico ? 'text-sm' : 'text-2xl'}`}>{q.texto}</p>}
           {q.respondida && <span className={`shrink-0 font-bold text-slate-500 ${chico ? 'text-xs' : 'text-base'}`}>✓ {t('respondida')}</span>}
         </div>
       ))}

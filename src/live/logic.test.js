@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   abiertas, actividadNueva, claveDePalabra, conteoEncuesta, correccionVigente, diferencias, estadisticaEscala, limpiarActividad,
-  limpiarPalabra, nombreValido, nube, ordenValido, palabrasDe, pinAlAzar, preguntasDelCurso, problemaDe, resultadoRanking, tamanoEnNube,
+  limpiarPalabra, nombreValido, nube, ordenValido, palabrasDe, pinAlAzar, preguntasDelCurso, problemaDe, resultadoRanking, seVenCorrecciones, tamanoEnNube,
 } from './logic.js'
 import { esGroseria } from './groserias.js'
 
@@ -46,6 +46,24 @@ describe('palabras de la nube', () => {
     expect(sola.find(x => x.clave === 'celula').oculta).toBe(false)
     const restaurada = nube(r, { weon: 'mostrar' })
     expect(restaurada.find(x => x.clave === 'weon').oculta).toBe(false)
+  })
+
+  it('una palabra corregida se suma a la que ya estaba bien escrita', () => {
+    const r = { a: { palabras: ['beatifull'] }, b: { palabras: ['beatifull'] }, c: { palabras: ['beautiful'] }, d: { palabras: ['sun'] } }
+    const n = nube(r, {}, { beatifull: 'beautiful' })
+    expect(n.map(x => [x.texto, x.cuenta, x.corregida])).toEqual([['beautiful', 3, true], ['sun', 1, false]])
+    expect(n[0].antes).toEqual(['beatifull'])
+    expect(n[0].origenes.sort()).toEqual(['beatifull', 'beautiful'])
+  })
+
+  it('corregir solo la tilde vale, aunque la clave sea la misma', () => {
+    const n = nube({ a: { palabras: ['cancion'] } }, {}, { cancion: 'canción' })
+    expect(n[0]).toMatchObject({ texto: 'canción', corregida: true, antes: ['cancion'] })
+  })
+
+  it('una grosería corregida a otra palabra sigue oculta si no se restaura', () => {
+    const n = nube({ a: { palabras: ['weón'] } }, {}, { weon: 'amigo' })
+    expect(n[0]).toMatchObject({ texto: 'amigo', auto: true, oculta: true })
   })
 
   it('el docente oculta cualquier palabra', () => {
@@ -149,6 +167,19 @@ describe('preguntas del curso', () => {
     const { pendientes } = preguntasDelCurso(r, {})
     expect(pendientes.map(q => q.qid)).toEqual(['q2', 'q1', 'q3'])
     expect(pendientes[2].groseria).toBe(true)
+  })
+
+  it('el docente corrige una pregunta y caduca si el estudiante la cambia', () => {
+    const m = { ...mod, correccionesPreguntas: { q2: { texto: '¿Por qué la mitocondria es importante?', de: '¿Por qué la mitocondria?' } } }
+    const q2 = preguntasDelCurso(r, m).aprobadas.find(q => q.qid === 'q2')
+    expect(q2).toMatchObject({ texto: '¿Por qué la mitocondria es importante?', original: '¿Por qué la mitocondria?', corregida: true })
+    const vieja = { ...mod, correccionesPreguntas: { q2: { texto: 'otra', de: 'algo que ya no está' } } }
+    expect(preguntasDelCurso(r, vieja).aprobadas.find(q => q.qid === 'q2').corregida).toBe(false)
+  })
+
+  it('el curso ve las correcciones salvo que el docente lo apague', () => {
+    expect(seVenCorrecciones(undefined)).toBe(true)
+    expect(seVenCorrecciones({ verCorrecciones: false })).toBe(false)
   })
 
   it('no lleva quién preguntó; solo si es mía y si la voté', () => {

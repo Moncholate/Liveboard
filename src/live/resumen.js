@@ -32,7 +32,7 @@ export const resultadoDe = (a, respuestas, moderacion) => {
   const base = { tipo: a.tipo, pregunta: a.pregunta }
   switch (a.tipo) {
     case 'nube':
-      return { ...base, palabras: nube(respuestas, moderacion?.palabras).filter(p => !p.oculta).map(p => ({ texto: p.texto, cuenta: p.cuenta })) }
+      return { ...base, palabras: nube(respuestas, moderacion?.palabras, moderacion?.correccionesNube).filter(p => !p.oculta).map(p => ({ texto: p.texto, cuenta: p.cuenta })) }
     case 'encuesta': {
       const alternativas = a.alternativas || []
       return { ...base, alternativas, votos: conteoEncuesta(respuestas, alternativas.length).votos }
