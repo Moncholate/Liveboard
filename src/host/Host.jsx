@@ -33,6 +33,10 @@ import { Cuenta, iniciarSesion } from './Cuenta.jsx'
 import { BotonTema, useTema } from '../tema.jsx'
 import { fondoPorId, fondoValido } from '../live/fondos.js'
 import { SelectorFondo } from '../live/SelectorFondo.jsx'
+import {
+  armarResumen, guardarMios, idResumenNuevo, leerMios, resumenVacio, rutaResumen, urlResumen, vencidos,
+} from '../live/resumen.js'
+import { BotonPdf, normalizar } from '../player/Clase.jsx'
 import { Lienzo } from '../live/Lienzo.jsx'
 import { ALTO, enCursoVisible, rutaPizarra, trazosEnOrden, vistaValida, yValida } from '../live/pizarra.js'
 
@@ -59,6 +63,7 @@ const ultimas = () => {
 /* Si se recarga la pestaña, se vuelve a la misma sala: los estudiantes ya
    entraron con ese PIN. */
 async function abrirSala(store) {
+  borrarResumenesVencidos(store)
   const anterior = guardado.get(PIN_KEY)
   if (anterior && (await store.get(`${raiz(anterior)}/meta`))) return anterior
   let pin
@@ -151,6 +156,7 @@ function Encabezado({ store, user, pin, meta, online, tema, onCerrar, acciones }
       <span className="text-slate-500">{t('pin')} <b className="text-slate-900 tracking-widest">{pin}</b></span>
       <BotonTema tema={tema} etiqueta={tema.oscuro ? t('usarClaro') : t('usarOscuro')} />
       <Cuenta store={store} user={user} />
+      <BotonCompartir store={store} pin={pin} />
       <BotonPizarra pin={pin} clave={meta?.clave} acciones={acciones} />
       <BotonCelular pin={pin} clave={meta?.clave} />
       <Button variant="danger" className="!px-3 !py-1.5 text-sm" onClick={onCerrar}>{t('cerrarSala')}</Button>
@@ -559,5 +565,95 @@ function PizarraProyector({ store, pin, acciones }) {
         <Button variant="ghost" onClick={() => irA(vista.pagina + 1)} disabled={vista.pagina >= vista.paginas - 1} aria-label={t('paginaSiguiente')}>›</Button>
       </footer>
     </main>
+  )
+}
+
+/* ── Compartir la clase ──────────────────────────────────────────────────── */
+
+/* Los resúmenes que este computador compartió y ya vencieron se borran al
+   abrir una sala: las reglas solo dejan borrar los vencidos. */
+function borrarResumenesVencidos(store) {
+  const mios = leerMios()
+  const fuera = vencidos(mios, store.now())
+  if (!fuera.length) return
+  for (const id of fuera) {
+    store.remove(rutaResumen(id)).catch(() => {})
+    delete mios[id]
+  }
+  guardarMios(mios)
+}
+
+/* Copia la clase, sin nombres, a un resumen que dura 30 días, y avisa a los
+   celulares que están en la sala. El QR y el enlace son para quien no estaba
+   conectado y para el aula virtual. «Actualizar» hace una copia nueva con lo
+   último (los celulares pasan a la nueva). */
+function BotonCompartir({ store, pin }) {
+  const t = useT()
+  const [abierto, setAbierto] = useState(false)
+  const id = useValue(store, abierto ? `${raiz(pin)}/resumen` : null)
+  const [resumen, setResumen] = useState(null)
+  const [estado, setEstado] = useState(null) // null | 'creando' | 'vacio' | 'copiado' | 'error'
+  const url = id ? urlResumen(id) : null
+  const qr = useQr(abierto ? url : null, 480)
+
+  useEffect(() => {
+    if (!id || resumen?.id === id) return
+    store.get(rutaResumen(id)).then(r => r && setResumen({ ...normalizar(r), id }), () => {})
+  }, [id])
+
+  const compartir = async () => {
+    setEstado('creando')
+    try {
+      const r = armarResumen(await store.get(raiz(pin)), store.now())
+      if (resumenVacio(r)) { setEstado('vacio'); return }
+      const nuevo = idResumenNuevo()
+      await store.set(rutaResumen(nuevo), r)
+      await store.set(`${raiz(pin)}/resumen`, nuevo)
+      guardarMios({ ...leerMios(), [nuevo]: r.vence })
+      setResumen({ ...normalizar(r), id: nuevo })
+      setEstado(null)
+    } catch (e) {
+      console.error(e)
+      setEstado('error')
+    }
+  }
+  const copiar = async () => {
+    try { await navigator.clipboard.writeText(url); setEstado('copiado') } catch { /* sin portapapeles */ }
+  }
+
+  return (
+    <>
+      <Button variant="ghost" className="!px-3 !py-1.5 text-sm" onClick={() => setAbierto(true)}>{t('compartir')}</Button>
+      {abierto && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 grid place-items-center p-4" onClick={() => setAbierto(false)}>
+          <div className="rounded-3xl bg-white p-6 max-w-md w-full text-center flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-black text-slate-900">{t('compartirClase')}</h2>
+            {!id ? (
+              <>
+                <p className="text-sm text-slate-600">{t('compartirAyuda')}</p>
+                <Button onClick={compartir} disabled={estado === 'creando'}>{estado === 'creando' ? t('creandoResumen') : t('compartirClase')}</Button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-600">{t('compartidaAyuda')}</p>
+                {qr && <img src={qr} alt={t('qrClase')} className="w-56 h-56 mx-auto" />}
+                <p className="text-xs text-slate-500 break-all">{url}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="ghost" onClick={copiar}>{estado === 'copiado' ? t('copiado') : t('copiarEnlace')}</Button>
+                  {resumen?.id === id ? <BotonPdf resumen={resumen} /> : <Button disabled>{t('cargando')}</Button>}
+                </div>
+                <Button variant="ghost" onClick={compartir} disabled={estado === 'creando'}>
+                  {estado === 'creando' ? t('creandoResumen') : t('actualizarResumen')}
+                </Button>
+              </>
+            )}
+            {estado === 'vacio' && <p role="status" className="text-sm text-amber-800">{t('nadaQueCompartir')}</p>}
+            {estado === 'error' && <p role="alert" className="text-sm text-rose-700">{t('errorCompartir')}</p>}
+            <p className="text-xs text-slate-500">{t('compartirPrivacidad')}</p>
+            <Button variant="ghost" onClick={() => setAbierto(false)}>{t('listo')}</Button>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

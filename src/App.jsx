@@ -4,13 +4,14 @@ import Materiales from './host/Materiales.jsx'
 import Mod from './host/Mod.jsx'
 import Pizarra from './host/Pizarra.jsx'
 import DiagnosticoLapiz from './host/DiagnosticoLapiz.jsx'
+import Clase from './player/Clase.jsx'
 import Player from './player/Player.jsx'
 import { Button, Logo } from './ui.jsx'
 import { ProveedorIdioma, SelectorIdioma, idiomaDelNavegador, useT, valido } from './i18n.jsx'
 import { useTema } from './tema.jsx'
 
 /* Ruteo por hash: GitHub Pages solo sirve index.html, así que #/host,
-   #/join?pin=123456, #/mod, #/pizarra y #/materiales nunca dan 404. */
+   #/join?pin=123456, #/mod, #/pizarra, #/clase y #/materiales nunca dan 404. */
 function useHash() {
   const [hash, setHash] = useState(location.hash)
   useEffect(() => {
@@ -28,6 +29,7 @@ export default function App() {
   if (hash.startsWith('#/materiales')) return <Materiales />
   if (hash.startsWith('#/mod')) return <Mod pin={params.get('pin') || ''} clave={params.get('clave') || ''} />
   if (hash.startsWith('#/lapiz')) return <DiagnosticoLapiz />
+  if (hash.startsWith('#/clase')) return <Clase id={params.get('id') || ''} />
   if (hash.startsWith('#/pizarra')) return <Pizarra pin={params.get('pin') || ''} clave={params.get('clave') || ''} />
   if (hash.startsWith('#/join')) {
     const pin = params.get('pin') || ''

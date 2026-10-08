@@ -20,6 +20,8 @@ import {
   ALTERNATIVAS, LIMITES, correccionVigente, idAlAzar, limpiarAbierta, nombreValido, palabrasDe, preguntasDelCurso,
 } from '../live/logic.js'
 import { Cambios } from '../live/Cambios.jsx'
+import { BotonPdf, normalizar } from './Clase.jsx'
+import { rutaResumen, urlResumen } from '../live/resumen.js'
 import { comoLista, raiz } from '../live/sala.js'
 import { useTema } from '../tema.jsx'
 
@@ -108,6 +110,7 @@ function EnSala({ store, pin, pid, onFuera }) {
   const estado = useValue(store, `${base}/estado`)
   const actividades = comoLista(useValue(store, `${base}/actividades`))
   const yo = useValue(store, `${base}/participantes/${pid}`)
+  const resumenId = useValue(store, `${base}/resumen`)
 
   useEffect(() => store.presence(`${base}/online/${pid}`), [store, base, pid])
 
@@ -127,6 +130,7 @@ function EnSala({ store, pin, pid, onFuera }) {
           <span className="text-sm text-slate-500 truncate">{yo?.nombre}</span>
         </header>
         <main className="flex-1 flex flex-col p-4 max-w-md w-full mx-auto">
+          {resumenId && <AvisoClase key={resumenId} store={store} id={resumenId} />}
           {actividad
             ? <Responder key={actividad.id} store={store} base={base} pid={pid} actividad={actividad} abierta={Boolean(estado.abierta)} />
             : <Espera />}
@@ -411,6 +415,25 @@ function PreguntarYVotar({ store, base, pid, actividad, abierta }) {
           </button>
         ))}
       </section>
+    </div>
+  )
+}
+
+/* LA CLASE PARA LLEVAR: cuando el docente comparte la clase, aparece aquí
+   arriba con el botón para bajarla en PDF, sin escanear nada. El resumen se
+   lee una sola vez, al aparecer el aviso; el PDF se arma en el celular. */
+function AvisoClase({ store, id }) {
+  const t = useT()
+  const [resumen, setResumen] = useState(null)
+  useEffect(() => {
+    store.get(rutaResumen(id)).then(r => r && setResumen(normalizar(r)), () => {})
+  }, [store, id])
+  return (
+    <div className="mb-4 rounded-2xl border-2 border-teal-600 bg-teal-50 p-4 flex flex-col gap-2">
+      <p className="font-black text-teal-900">{t('profeCompartio')}</p>
+      <p className="text-sm text-teal-900">{t('profeCompartioAyuda')}</p>
+      {resumen ? <BotonPdf resumen={resumen} /> : <Button disabled>{t('cargando')}</Button>}
+      <a href={urlResumen(id)} target="_blank" rel="noopener" className="text-sm font-semibold text-teal-800 underline underline-offset-2 self-center">{t('verClase')}</a>
     </div>
   )
 }

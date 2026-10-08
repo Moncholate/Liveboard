@@ -48,7 +48,17 @@
         },
         "pizarra": {
           ".write": true
+        },
+        "resumen": {
+          ".write": true,
+          ".validate": "newData.isString() && newData.val().length === 12"
         }
+      }
+    },
+    "resumenes": {
+      "$id": {
+        ".read": "data.child('vence').val() > now",
+        ".write": "(!data.exists() && newData.child('vence').isNumber() && newData.child('vence').val() > now && newData.child('vence').val() <= now + 2678400000) || (data.exists() && !newData.exists() && data.child('vence').val() <= now)"
       }
     },
     "docentes": {
