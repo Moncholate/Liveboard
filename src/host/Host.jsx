@@ -37,6 +37,7 @@ import {
   armarResumen, guardarMios, idResumenNuevo, leerMios, resumenVacio, rutaResumen, urlResumen, vencidos,
 } from '../live/resumen.js'
 import { BotonPdf, normalizar } from '../player/Clase.jsx'
+import { anotarSala, borrarSiEsLaMisma, esVieja, limpiarSalasViejas, olvidarSala } from '../live/limpieza.js'
 import { Lienzo } from '../live/Lienzo.jsx'
 import { ALTO, enCursoVisible, rutaPizarra, trazosEnOrden, vistaValida, yValida } from '../live/pizarra.js'
 
@@ -61,11 +62,17 @@ const ultimas = () => {
 }
 
 /* Si se recarga la pestaña, se vuelve a la misma sala: los estudiantes ya
-   entraron con ese PIN. */
+   entraron con ese PIN. Salvo que tenga más de 12 horas: es la de una clase
+   anterior que quedó abierta, y se borra (limpieza.js). */
 async function abrirSala(store) {
   borrarResumenesVencidos(store)
   const anterior = guardado.get(PIN_KEY)
-  if (anterior && (await store.get(`${raiz(anterior)}/meta`))) return anterior
+  const metaAnterior = anterior ? await store.get(`${raiz(anterior)}/meta`) : null
+  if (metaAnterior && !esVieja(metaAnterior.creada, store.now())) {
+    limpiarSalasViejas(store, { actual: anterior })
+    return anterior
+  }
+  if (metaAnterior) await borrarSiEsLaMisma(store, anterior, metaAnterior.creada).catch(() => {})
   let pin
   do pin = pinAlAzar()
   while (await store.get(`${raiz(pin)}/meta`))
@@ -78,6 +85,8 @@ async function abrirSala(store) {
   })
   guardado.set(PIN_KEY, pin)
   guardado.set(ORIGEN_KEY, null)
+  anotarSala(store, pin, (await store.get(`${raiz(pin)}/meta`))?.creada)
+  limpiarSalasViejas(store, { actual: pin })
   return pin
 }
 
@@ -116,6 +125,14 @@ function Sala({ store, pin, onCerrada }) {
   /* Alguien cerró la sala desde otro lado (el celular): se vuelve al inicio. */
   useEffect(() => { if (meta === null) onCerrada() }, [meta])
 
+  /* Con sesión, la sala queda anotada también en la cuenta, y de paso se
+     borran las viejas que otros computadores dejaron abiertas. */
+  useEffect(() => {
+    if (!user || typeof meta?.creada !== 'number') return
+    anotarSala(store, pin, meta.creada, user.uid)
+    limpiarSalasViejas(store, { actual: pin, uid: user.uid })
+  }, [user?.uid, meta?.creada])
+
   /* Las actividades también: Preparar las copia al montarse para editarlas. */
   if (meta === undefined || estado === undefined || actividadesRaw === undefined || idiomaRaw === undefined) {
     return <Center>{traducir(idioma, 'cargando')}</Center>
@@ -124,6 +141,7 @@ function Sala({ store, pin, onCerrada }) {
   const cerrar = async () => {
     if (!confirm(traducir(idioma, 'confirmarCerrar'))) return
     await acciones.cerrarSala()
+    olvidarSala(store, pin, user?.uid)
     onCerrada()
   }
 
