@@ -22,12 +22,19 @@ import { useStore, useUser, useValue } from '../net/hooks.js'
 import { isOnline } from '../net/store.js'
 import { Button, Center, Logo, urlParaUnirse } from '../ui.jsx'
 import { ProveedorIdioma, SelectorIdioma, idiomaDelNavegador, traducir, useT, valido } from '../i18n.jsx'
-import { abiertas, cuantosRespondieron, idAlAzar, pinAlAzar, preguntasDelCurso, problemaDe, seVenCorrecciones } from '../live/logic.js'
+import {
+  abiertas, conTexto, consignasDe, cuantosRespondieron, idAlAzar, moderable as esModerable, pinAlAzar, preguntasDelCurso, problemaDe,
+  seVenCorrecciones, tituloDe,
+} from '../live/logic.js'
 import { accionesDeSala, comoLista, conectados, raiz } from '../live/sala.js'
 import {
   LARGO_OBJETIVO, LARGO_TITULO, actividadesParaSala, idMaterialNuevo, listaDeMateriales, materialParaGuardar, rutaMaterial, rutaMateriales,
 } from '../live/materiales.js'
-import { Abiertas, Encuesta, Escala, Nube, Preguntas, Ranking } from '../live/Resultados.jsx'
+import {
+  Abiertas, Apuesta, Encuesta, Escala, MarcoAntesAhora, Muro, Nube, Preguntas, Ranking, Semaforo, TextoConHuecos,
+} from '../live/Resultados.jsx'
+import { faseApuesta } from '../live/cierres.js'
+import { leerTraida } from '../live/traida.js'
 import { Moderacion } from '../live/Moderacion.jsx'
 import { Editor } from './Editor.jsx'
 import { Cuenta, iniciarSesion } from './Cuenta.jsx'
@@ -69,20 +76,33 @@ const ultimas = () => {
 
 /* Si se recarga la pestaña, se vuelve a la misma sala: los estudiantes ya
    entraron con ese PIN. Salvo que tenga más de 12 horas: es la de una clase
-   anterior que quedó abierta, y se borra (limpieza.js). */
-async function abrirSala(store) {
+   anterior que quedó abierta, y se borra (limpieza.js).
+
+   `traida` es una actividad que llegó del Utility Belt (traida.js). En una
+   sala nueva es la única —las de la última clase no vienen al caso—; en la
+   sala que ya estaba abierta se agrega al final y se muestra de una vez: el
+   curso ya está dentro y el docente quiere cerrar. Devuelve el PIN y, si la
+   traída quedó esperando en una sala nueva, su id. */
+async function abrirSala(store, traida) {
   borrarResumenesVencidos(store)
   const anterior = guardado.get(PIN_KEY)
   const metaAnterior = anterior ? await store.get(`${raiz(anterior)}/meta`) : null
   if (metaAnterior && !esVieja(metaAnterior.creada, store.now())) {
     limpiarSalasViejas(store, { actual: anterior })
-    return anterior
+    if (traida) {
+      const lista = [...comoLista(await store.get(`${raiz(anterior)}/actividades`)), traida]
+      const acciones = accionesDeSala(store, anterior)
+      await acciones.guardarActividades(lista)
+      guardado.set(ULTIMAS_KEY, JSON.stringify(lista))
+      await acciones.mostrar(lista.length - 1, traida.tipo)
+    }
+    return { pin: anterior, esperando: null }
   }
   if (metaAnterior) await borrarSiEsLaMisma(store, anterior, metaAnterior.creada).catch(() => {})
   let pin
   do pin = pinAlAzar()
   while (await store.get(`${raiz(pin)}/meta`))
-  const lista = ultimas()
+  const lista = traida ? [traida] : ultimas()
   await store.update(raiz(pin), {
     meta: { creada: store.stamp(), clave: idAlAzar() },
     idioma: valido(guardado.get(IDIOMA_KEY) || idiomaDelNavegador()),
@@ -90,27 +110,36 @@ async function abrirSala(store) {
     ...(lista.length ? { actividades: lista } : {}),
     ...(ultimaClase()?.titulo ? { clase: ultimaClase() } : {}),
   })
+  if (traida) guardado.set(ULTIMAS_KEY, JSON.stringify(lista))
   guardado.set(PIN_KEY, pin)
   guardado.set(ORIGEN_KEY, null)
   anotarSala(store, pin, (await store.get(`${raiz(pin)}/meta`))?.creada)
   limpiarSalasViejas(store, { actual: pin })
-  return pin
+  return { pin, esperando: traida?.id || null }
 }
 
 export default function Host() {
   const store = useStore()
-  const [pin, setPin] = useState(null)
+  const [sala, setSala] = useState(null)
   const [error, setError] = useState(null)
+  /* Se lee una vez y se borra del enlace: recargar la pestaña no tiene que
+     volver a agregarla. */
+  const [traida] = useState(() => leerTraida(location.hash))
+  const abierta = useRef(false)
   const idioma = valido(guardado.get(IDIOMA_KEY) || idiomaDelNavegador())
   useEffect(() => {
-    if (store) abrirSala(store).then(setPin, (e) => setError(e.message))
+    if (!store || abierta.current) return
+    abierta.current = true
+    if (traida) history.replaceState(null, '', '#/host')
+    abrirSala(store, traida?.actividad).then(setSala, (e) => setError(e.message))
   }, [store])
   if (error) return <Center>{traducir(idioma, 'noSeCreo', error)}</Center>
-  if (!pin) return <Center>{traducir(idioma, 'creandoSala')}</Center>
-  return <Sala store={store} pin={pin} onCerrada={() => { guardado.set(PIN_KEY, null); location.hash = '' }} />
+  if (!sala) return <Center>{traducir(idioma, 'creandoSala')}</Center>
+  return <Sala store={store} pin={sala.pin} esperando={sala.esperando} traidaRota={Boolean(traida?.error)}
+    onCerrada={() => { guardado.set(PIN_KEY, null); location.hash = '' }} />
 }
 
-function Sala({ store, pin, onCerrada }) {
+function Sala({ store, pin, esperando, traidaRota, onCerrada }) {
   const base = raiz(pin)
   const meta = useValue(store, `${base}/meta`)
   const idiomaRaw = useValue(store, `${base}/idioma`)
@@ -129,6 +158,9 @@ function Sala({ store, pin, onCerrada }) {
   const actividades = comoLista(actividadesRaw)
   const idx = estado?.idx ?? null
   const actual = idx != null ? actividades[idx] : null
+  /* El aviso de lo que llegó del Belt se va apenas se muestra una actividad. */
+  const [espera, setEspera] = useState(esperando)
+  useEffect(() => { if (idx != null) setEspera(null) }, [idx])
 
   /* Alguien cerró la sala desde otro lado (el celular): se vuelve al inicio. */
   useEffect(() => { if (meta === null) onCerrada() }, [meta])
@@ -162,10 +194,10 @@ function Sala({ store, pin, onCerrada }) {
         {estado?.pizarra
           ? <PizarraProyector store={store} pin={pin} acciones={acciones} />
           : actual
-          ? <Presentar store={store} base={base} pin={pin} idx={idx} actividad={actual} total={actividades.length}
+          ? <Presentar store={store} base={base} pin={pin} idx={idx} actividad={actual} actividades={actividades}
               estado={estado} participantes={participantes} acciones={acciones} fondo={fondo} />
           : <Preparar store={store} user={user} pin={pin} online={online} actividades={actividades} acciones={acciones} clase={clase}
-              fondo={fondo} setFondo={setFondo} />}
+              fondo={fondo} setFondo={setFondo} esperando={espera} traidaRota={traidaRota} />}
       </div>
     </ProveedorIdioma>
   )
@@ -192,7 +224,7 @@ function Encabezado({ store, user, pin, meta, online, tema, onCerrar, acciones }
 
 /* ── Preparar ────────────────────────────────────────────────────────────── */
 
-function Preparar({ store, user, pin, online, actividades, acciones, clase, fondo, setFondo }) {
+function Preparar({ store, user, pin, online, actividades, acciones, clase, fondo, setFondo, esperando, traidaRota }) {
   const t = useT()
   /* Se edita en local y se guarda en la sala con una pausa: escribir en la base
      con cada tecla hace saltar el cursor cuando vuelve el eco. */
@@ -224,9 +256,11 @@ function Preparar({ store, user, pin, online, actividades, acciones, clase, fond
   const lanzar = async (i) => {
     await acciones.guardarActividades(lista)
     guardado.set(ULTIMAS_KEY, JSON.stringify(lista))
-    acciones.mostrar(i)
+    acciones.mostrar(i, lista[i]?.tipo)
   }
   const primeraLista = lista.findIndex(a => !problemaDe(a))
+  /* La que llegó del Utility Belt, mientras siga en la lista. */
+  const iTraida = esperando ? lista.findIndex(a => a.id === esperando) : -1
 
   const cambiarIdioma = (l) => {
     acciones.cambiarIdioma(l)
@@ -254,6 +288,15 @@ function Preparar({ store, user, pin, online, actividades, acciones, clase, fond
       </div>
 
       <section className="flex flex-col gap-3">
+        {iTraida >= 0 && (
+          <div role="status" className="rounded-2xl border-2 border-teal-600 bg-teal-50 p-4 flex flex-wrap items-center gap-3">
+            <p className="flex-1 min-w-[14rem] font-semibold text-teal-900">{t('traidaDelBelt', t(`tipo_${lista[iTraida].tipo}`))}</p>
+            <Button onClick={() => lanzar(iTraida)}>{t('mostrarAhora')}</Button>
+          </div>
+        )}
+        {traidaRota && (
+          <p role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">{t('traidaInvalida')}</p>
+        )}
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-xl font-black text-slate-900">{t('actividades')}</h2>
           <Button disabled={primeraLista < 0} onClick={() => lanzar(primeraLista)}>{t('empezar')}</Button>
@@ -391,17 +434,21 @@ function Unirse({ pin, online }) {
 
 /* ── Presentar ───────────────────────────────────────────────────────────── */
 
-function Presentar({ store, base, pin, idx, actividad, total, estado, participantes, acciones, fondo }) {
+function Presentar({ store, base, pin, idx, actividad, actividades, estado, participantes, acciones, fondo }) {
   const t = useT()
+  const total = actividades.length
   const aid = actividad.id
   const respuestas = useValue(store, aid ? `${base}/respuestas/${aid}` : null)
   const moderacion = useValue(store, aid ? `${base}/moderacion/${aid}` : null)
   /* La moderación proyectada es de la sala, no de esta pestaña: se prende y
      apaga desde aquí o desde la tablet (Mod.jsx). */
   const moderando = Boolean(estado.moderando)
-  const moderable = ['nube', 'abierta', 'preguntas'].includes(actividad.tipo)
+  const moderable = esModerable(actividad.tipo)
+  const apuesta = actividad.tipo === 'apuesta'
+  const fase = faseApuesta(estado)
+  const ir = (i) => acciones.mostrar(i, actividades[i]?.tipo)
   const n = cuantosRespondieron(respuestas)
-  const aprobadasYPendientes = actividad.tipo === 'abierta' ? abiertas(respuestas, moderacion?.abiertas)
+  const aprobadasYPendientes = conTexto(actividad.tipo) ? abiertas(respuestas, moderacion?.abiertas)
     : actividad.tipo === 'preguntas' ? preguntasDelCurso(respuestas, moderacion)
     : null
   const pendientes = aprobadasYPendientes?.pendientes.length || 0
@@ -414,7 +461,8 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
   const f = fondoPorId(fondo)
   const conFondo = Boolean(f.css)
   const panel = conFondo ? 'panel-proyector rounded-3xl shadow-xl' : ''
-  const sinPanel = estado.resultados && (aprobadasYPendientes?.aprobadas.length || 0) > 0
+  /* El muro sí lleva panel: su título y su cuenta son texto suelto. */
+  const sinPanel = estado.resultados && actividad.tipo !== 'muro' && (aprobadasYPendientes?.aprobadas.length || 0) > 0
 
   return (
     <main className="flex-1 flex min-h-0">
@@ -426,11 +474,19 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
             <span className="flex-1" />
             <JoinCorner pin={pin} />
           </div>
-          <h1 className="px-8 pt-2 text-5xl font-black text-slate-900 leading-tight">{actividad.pregunta}</h1>
+          <h1 className="px-8 pt-2 text-5xl font-black text-slate-900 leading-tight"><TextoConHuecos texto={tituloDe(actividad, t)} /></h1>
+          {actividad.tipo === 'antesahora' && (actividad.antes || actividad.ahora) && (
+            <div className="px-8 pt-4"><MarcoAntesAhora antes={actividad.antes} ahora={actividad.ahora} /></div>
+          )}
         </div>
 
         <div className={`flex-1 flex items-center justify-center min-h-0 overflow-auto ${conFondo ? 'px-3 py-2' : 'px-8 py-8'}`}>
-          {estado.resultados ? (
+          {apuesta ? (
+            /* La apuesta va por fases, no por «mostrar resultados». */
+            <div className={conFondo ? `${panel} p-8 w-full max-w-6xl` : 'w-full'}>
+              <Apuesta consignas={consignasDe(actividad)} respuestas={respuestas} fase={fase} />
+            </div>
+          ) : estado.resultados ? (
             sinPanel
               ? <Resultados actividad={actividad} respuestas={respuestas} moderacion={moderacion} sobreFondo={conFondo} />
               : (
@@ -448,13 +504,17 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
         </div>
 
         <footer className="flex flex-wrap items-center gap-2 px-6 py-3 bg-white border-t border-slate-200">
-          <Button variant="ghost" onClick={() => acciones.mostrar(idx - 1)} disabled={idx === 0}>{t('anterior')}</Button>
+          <Button variant="ghost" onClick={() => ir(idx - 1)} disabled={idx === 0}>{t('anterior')}</Button>
           <Button variant="ghost" onClick={() => acciones.abrir(!estado.abierta)}>
             {estado.abierta ? t('cerrarRespuestas') : t('reabrirRespuestas')}
           </Button>
-          <Button variant="ghost" onClick={() => acciones.resultados(!estado.resultados)}>
-            {estado.resultados ? t('ocultarResultados') : t('mostrarResultados')}
-          </Button>
+          {apuesta
+            ? <FasesApuesta fase={fase} acciones={acciones} />
+            : (
+              <Button variant="ghost" onClick={() => acciones.resultados(!estado.resultados)}>
+                {estado.resultados ? t('ocultarResultados') : t('mostrarResultados')}
+              </Button>
+            )}
           {moderable && (
             <Button variant="ghost" onClick={() => acciones.moderando(!moderando)} className={moderando ? '!border-teal-600 !text-teal-800' : ''}>
               {t('moderar')}{pendientes ? ` · ${pendientes}` : ''}
@@ -465,7 +525,7 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
           </span>
           <Button variant="ghost" onClick={acciones.volverAPreparar}>{t('actividades')}</Button>
           {idx < total - 1
-            ? <Button onClick={() => acciones.mostrar(idx + 1)}>{t('siguiente')}</Button>
+            ? <Button onClick={() => ir(idx + 1)}>{t('siguiente')}</Button>
             : <Button onClick={acciones.volverAPreparar}>{t('terminar')}</Button>}
         </footer>
       </div>
@@ -485,6 +545,7 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
           <Moderacion actividad={actividad} respuestas={respuestas} moderacion={moderacion} participantes={participantes}
             onPalabra={(clave, d) => acciones.moderarPalabra(aid, clave, d)}
             onAbierta={(pid, d) => acciones.decidirAbierta(aid, pid, d)}
+            onAprobarVarias={(pids) => acciones.aprobarVarias(aid, pids)}
             onCorregir={(pid, texto, de) => acciones.corregirAbierta(aid, pid, texto, de)}
             onPregunta={(qid, d) => acciones.decidirPregunta(aid, qid, d)}
             onRespondida={(qid, si) => acciones.marcarRespondida(aid, qid, si)}
@@ -497,8 +558,31 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
   )
 }
 
+/* Las fases de la apuesta, en orden: el botón que avanza es el sólido, y se
+   puede volver un paso por si se tocó antes de tiempo. Las usa también el
+   celular del docente (Mod.jsx). */
+export function FasesApuesta({ fase, acciones, className = '' }) {
+  const t = useT()
+  if (fase === 'escribir') return <Button className={className} onClick={() => acciones.fase('apostar')}>{t('aApostar')}</Button>
+  if (fase === 'apostar') {
+    return (
+      <>
+        <Button variant="ghost" className={className} onClick={() => acciones.fase('escribir')}>{t('volverAEscribir')}</Button>
+        <Button className={className} onClick={() => acciones.fase('comparar')}>{t('ahoraCorrijan')}</Button>
+      </>
+    )
+  }
+  return <Button variant="ghost" className={className} onClick={() => acciones.fase('apostar')}>{t('volverAApostar')}</Button>
+}
+
 function Resultados({ actividad, respuestas, moderacion, sobreFondo = false }) {
+  const t = useT()
+  const aprobadas = () => abiertas(respuestas, moderacion?.abiertas, {}, moderacion?.correcciones).aprobadas
   switch (actividad.tipo) {
+    case 'semaforo': return <div className="w-full max-w-5xl mx-auto"><Semaforo respuestas={respuestas} /></div>
+    case 'duda': return <Abiertas aprobadas={aprobadas()} sobreFondo={sobreFondo} verCambios={seVenCorrecciones(moderacion)} />
+    case 'antesahora': return <Abiertas aprobadas={aprobadas()} sobreFondo={sobreFondo} verCambios={seVenCorrecciones(moderacion)} prefijo={t('porque')} />
+    case 'muro': return <Muro aprobadas={aprobadas()} sobreFondo={sobreFondo} verCambios={seVenCorrecciones(moderacion)} />
     case 'nube': return <Nube respuestas={respuestas} moderacion={moderacion?.palabras} correcciones={moderacion?.correccionesNube} />
     case 'encuesta': return <div className="w-full max-w-4xl mx-auto"><Encuesta actividad={actividad} respuestas={respuestas} /></div>
     case 'escala': return <div className="w-full max-w-4xl mx-auto"><Escala respuestas={respuestas} /></div>

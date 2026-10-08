@@ -10,6 +10,7 @@
    de la pizarra (una hoja apaisada por pantalla del cuaderno). Sin nombres.
    ========================================================================== */
 import { ALTERNATIVAS } from './logic.js'
+import { NIVELES } from './cierres.js'
 import { traducir } from '../i18n.jsx'
 import { imagenesDePagina } from './imagenPizarra.js'
 
@@ -28,6 +29,7 @@ const TEAL = [15, 118, 110]
 const GRIS = [100, 116, 139]
 const TINTA = [15, 23, 42]
 const BARRA_FONDO = [241, 245, 249]
+const LUZ = { verde: [34, 197, 94], ambar: [245, 158, 11], rojo: [239, 68, 68] }
 
 /* «unidad-3-past-simple-2026-10-08.pdf»: con título se reconoce en la
    carpeta de descargas; sin título, «clase-2026-10-08.pdf». */
@@ -106,7 +108,14 @@ export async function descargarPdf(resumen) {
     doc.line(M, y, M + W, y)
     y += 5
     parrafo(`${n + 1}. ${t(`tipo_${a.tipo}`)}`.toUpperCase(), { size: 9, bold: true, color: TEAL, gap: 0.5 })
-    parrafo(a.pregunta, { size: 14, bold: true, gap: 3 })
+    if (a.pregunta) parrafo(a.pregunta, { size: 14, bold: true, gap: 3 })
+    /* Una viñeta dibujada: el «•» no está en la letra básica del PDF. */
+    const vineta = (texto) => {
+      salto(6)
+      doc.setFillColor(...TEAL)
+      doc.circle(M + 1.2, y + 2.6, 0.9, 'F')
+      parrafo(texto, { size: 12, gap: 2.5, x: M + 5, ancho: W - 5 })
+    }
 
     if (a.tipo === 'nube') {
       parrafo(a.palabras.map(p => `${p.texto} (${p.cuenta})`).join('   ·   '), { size: 12 })
@@ -140,6 +149,28 @@ export async function descargarPdf(resumen) {
         doc.circle(M + 1.2, y + 2.6, 0.9, 'F')
         parrafo(texto, { size: 12, gap: 2.5, x: M + 5, ancho: W - 5 })
       })
+    } else if (a.tipo === 'semaforo') {
+      const total = a.votos.reduce((s, v) => s + v, 0)
+      NIVELES.forEach((nv, i) => {
+        const pct = total ? Math.round((a.votos[i] / total) * 100) : 0
+        filaConDato(nv.texto, `${a.votos[i]} · ${pct}%`)
+        barra(pct, LUZ[nv.id])
+      })
+    } else if (a.tipo === 'duda' || a.tipo === 'muro') {
+      a.textos.forEach(vineta)
+    } else if (a.tipo === 'antesahora') {
+      if (a.antes || a.ahora) parrafo(`${t('antesPensaba')} ${a.antes || '______'}  ->  ${t('ahoraPienso')} ${a.ahora || '______'}`, { size: 11, color: GRIS, gap: 2 })
+      a.items.forEach(r => {
+        const lados = r.antes || r.ahora ? `${r.antes}${r.antes && r.ahora ? ' -> ' : ''}${r.ahora}: ` : ''
+        vineta(`${lados}${t('porque')} ${r.texto}`)
+      })
+    } else if (a.tipo === 'apuesta') {
+      a.consignas.forEach((c, i) => parrafo(`${i + 1}. ${c}`, { size: 12, gap: 1 }))
+      y += 2
+      filaConDato(t('calib_exacto'), String(a.exactos))
+      filaConDato(t('calib_deMas'), String(a.deMas))
+      filaConDato(t('calib_deMenos'), String(a.deMenos))
+      parrafo(t('compararonN', a.compararon, a.apostaron), { size: 9, color: GRIS })
     } else if (a.tipo === 'preguntas') {
       a.preguntas.forEach(q => {
         parrafo(`${q.texto}`, { size: 12, gap: 0.5, color: q.respondida ? GRIS : TINTA })

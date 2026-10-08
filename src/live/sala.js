@@ -4,13 +4,15 @@
    boards/{pin}/
      meta          { creada, clave }   clave = la del enlace para moderar
      idioma        'es' | 'en'   lo siguen el proyector y todos los celulares
-     estado        { idx, abierta, resultados, pizarra?, moderando? }
+     estado        { idx, abierta, resultados, pizarra?, moderando?, fase? }
                    idx null = preparando (sala de espera); si no, la actividad
                    que se está mostrando. pizarra = el proyector muestra el
                    pizarrón encima (pizarra.js); cambiar de actividad lo aparta.
                    moderando = el proyector muestra la columna de moderación
                    (sin nombres), para corregir en grupo; se prende y apaga
-                   desde el PC o desde la tablet, y sigue al cambiar de actividad
+                   desde el PC o desde la tablet, y sigue al cambiar de actividad.
+                   fase = en qué pantalla va la apuesta (cierres.js); cambiar
+                   de actividad la devuelve al principio
      pizarra       lo que escribe el docente en su tablet (pizarra.js)
      clase         { titulo, objetivo? }   salen en el PDF de la clase
                    (resumen.js); se cargan con un material
@@ -42,7 +44,8 @@
    el proyector y el celular con que se modera. Dos copias de «siguiente»
    terminan haciendo cosas distintas.
    ========================================================================== */
-import { claveDePalabra, limpiarAbierta, limpiarActividad, limpiarPalabra } from './logic.js'
+import { claveDePalabra, empiezaOculta, limpiarAbierta, limpiarActividad, limpiarPalabra } from './logic.js'
+import { FASES_APUESTA } from './cierres.js'
 import { limpiarObjetivo, limpiarTitulo } from './materiales.js'
 
 export const raiz = (pin) => `boards/${pin}`
@@ -53,11 +56,16 @@ export const accionesDeSala = (store, pin) => {
     const limpio = limpiarAbierta(texto)
     return limpio && limpio !== limpiarAbierta(de) ? store.set(ruta, { texto: limpio, de: limpiarAbierta(de) }) : store.remove(ruta)
   }
-  /* Cada actividad arranca abierta y con los resultados a la vista. */
-  const mostrar = (idx) => store.update(`${base}/estado`, { idx, abierta: true, resultados: true, pizarra: null })
+  /* Cada actividad arranca abierta y con los resultados a la vista, salvo el
+     semáforo, que arranca tapado (empiezaOculta). `tipo` es el de la actividad
+     que se va a mostrar. */
+  const mostrar = (idx, tipo) => store.update(`${base}/estado`, { idx, abierta: true, resultados: !empiezaOculta(tipo), pizarra: null, fase: null })
   return {
     mostrar,
-    volverAPreparar: () => store.update(`${base}/estado`, { idx: null, abierta: false, resultados: false, pizarra: null }),
+    volverAPreparar: () => store.update(`${base}/estado`, { idx: null, abierta: false, resultados: false, pizarra: null, fase: null }),
+    /* La apuesta pasa de pantalla. Al apostar se reabren las respuestas por si
+       el docente las había cerrado escribiendo. */
+    fase: (fase) => store.update(`${base}/estado`, { fase: FASES_APUESTA.includes(fase) ? fase : null, abierta: true }),
     moderando: (si) => store.update(`${base}/estado`, { moderando: si ? true : null }),
     abrir: (abierta) => store.update(`${base}/estado`, { abierta }),
     pizarra: (si) => store.update(`${base}/estado`, { pizarra: si ? true : null }),
@@ -69,6 +77,9 @@ export const accionesDeSala = (store, pin) => {
     cambiarIdioma: (idioma) => store.set(`${base}/idioma`, idioma === 'en' ? 'en' : 'es'),
     moderarPalabra: (aid, clave, decision) => store.set(`${base}/moderacion/${aid}/palabras/${clave}`, decision),
     decidirAbierta: (aid, pid, decision) => store.set(`${base}/moderacion/${aid}/abiertas/${pid}`, decision),
+    /* Con treinta celulares mandando su logro al muro, aprobar de a uno son
+       treinta toques con el curso esperando. */
+    aprobarVarias: (aid, pids) => store.update(`${base}/moderacion/${aid}/abiertas`, Object.fromEntries(pids.map(pid => [pid, true]))),
     /* Sin texto, se quita la corrección y vuelve a verse el original. */
     corregirAbierta: (aid, pid, texto, de) => corregirTexto(`${base}/moderacion/${aid}/correcciones/${pid}`, texto, de),
     corregirPregunta: (aid, qid, texto, de) => corregirTexto(`${base}/moderacion/${aid}/correccionesPreguntas/${qid}`, texto, de),

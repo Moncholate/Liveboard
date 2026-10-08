@@ -6,7 +6,9 @@
    materiales no hay sala, así que no lo lleva.
    ========================================================================== */
 import { useT } from '../i18n.jsx'
-import { ALTERNATIVAS, LIMITES, TIPOS, actividadNueva, conAlternativas, problemaDe, rangoAlternativas } from '../live/logic.js'
+import {
+  ALTERNATIVAS, BASICOS, CIERRES, LIMITES, actividadNueva, conAlternativas, preguntaOpcional, problemaDe, rangoAlternativas,
+} from '../live/logic.js'
 import { Button } from '../ui.jsx'
 
 export function Editor({ lista, setLista, onMostrar }) {
@@ -29,17 +31,21 @@ export function Editor({ lista, setLista, onMostrar }) {
           onMostrar={onMostrar ? () => onMostrar(i) : null} />
       ))}
 
-      <div className="rounded-2xl border-2 border-dashed border-slate-300 p-4">
-        <p className="text-sm font-bold text-slate-600 mb-2">{t('agregar')}</p>
-        <div className="flex flex-wrap gap-2">
-          {TIPOS.map(tipo => (
-            <button key={tipo} onClick={() => setLista(l => [...l, actividadNueva(tipo)])}
-              title={t(`ayuda_${tipo}`)}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2 font-semibold text-slate-700 hover:border-teal-600 hover:text-teal-800">
-              + {t(`tipo_${tipo}`)}
-            </button>
-          ))}
-        </div>
+      <div className="rounded-2xl border-2 border-dashed border-slate-300 p-4 flex flex-col gap-3">
+        {[['agregar', BASICOS], ['paraCerrar', CIERRES]].map(([rotulo, tipos]) => (
+          <div key={rotulo}>
+            <p className="text-sm font-bold text-slate-600 mb-2">{t(rotulo)}</p>
+            <div className="flex flex-wrap gap-2">
+              {tipos.map(tipo => (
+                <button key={tipo} onClick={() => setLista(l => [...l, actividadNueva(tipo)])}
+                  title={t(`ayuda_${tipo}`)}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 font-semibold text-slate-700 hover:border-teal-600 hover:text-teal-800">
+                  + {t(`tipo_${tipo}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -59,9 +65,38 @@ function Tarjeta({ a, i, total, onCambiar, onQuitar, onMover, onMostrar }) {
         <button onClick={() => onMover(1)} disabled={i === total - 1} aria-label={t('bajar')} className="px-2 text-slate-500 disabled:opacity-30">↓</button>
         <button onClick={onQuitar} className="px-2 text-sm text-rose-700">{t('quitar')}</button>
       </div>
-      <input value={a.pregunta} maxLength={LIMITES.pregunta} placeholder={t('escribePregunta')}
-        onChange={(e) => onCambiar({ pregunta: e.target.value })} className={`${campo} font-semibold`} />
+      {a.tipo === 'duda' || a.tipo === 'muro' ? (
+        <>
+          <textarea value={a.pregunta} maxLength={LIMITES.pregunta} rows={2} placeholder={t(`moldeEj_${a.tipo}`)} aria-label={t(`tipo_${a.tipo}`)}
+            onChange={(e) => onCambiar({ pregunta: e.target.value })} className={`${campo} font-semibold resize-none`} />
+          <p className="text-xs text-slate-500">{t('moldeAyuda')}</p>
+        </>
+      ) : (
+        <input value={a.pregunta} maxLength={LIMITES.pregunta}
+          placeholder={a.tipo === 'semaforo' ? t('escribeObjetivo') : preguntaOpcional(a.tipo) ? t('tituloOpcional') : t('escribePregunta')}
+          onChange={(e) => onCambiar({ pregunta: e.target.value })} className={`${campo} font-semibold`} />
+      )}
       {conAlternativas(a.tipo) && <Alternativas a={a} campo={campo} onCambiar={onCambiar} />}
+      {a.tipo === 'antesahora' && (
+        <>
+          <div className="grid sm:grid-cols-2 gap-2">
+            <input value={a.antes || ''} maxLength={LIMITES.lado} placeholder={t('antesPensaba')} aria-label={t('antesPensaba')}
+              onChange={(e) => onCambiar({ antes: e.target.value })} className={campo} />
+            <input value={a.ahora || ''} maxLength={LIMITES.lado} placeholder={t('ahoraPienso')} aria-label={t('ahoraPienso')}
+              onChange={(e) => onCambiar({ ahora: e.target.value })} className={campo} />
+          </div>
+          <p className="text-xs text-slate-500">{t('ladosEnBlanco')}</p>
+        </>
+      )}
+      {a.tipo === 'apuesta' && (
+        <>
+          {/* Se editan las líneas tal cual —también las vacías, o Enter no
+              haría nada— y se limpian al guardar (limpiarActividad). */}
+          <textarea value={(a.consignas || []).join('\n')} rows={5} placeholder={t('consignasEj')} aria-label={t('consignas')}
+            onChange={(e) => onCambiar({ consignas: e.target.value.split('\n').slice(0, LIMITES.maxConsignas) })} className={`${campo} resize-y`} />
+          <p className="text-xs text-slate-500">{t('consignas')} · {t('consignasReparte')}</p>
+        </>
+      )}
       <div className="flex items-center gap-3">
         <span className="flex-1 text-xs text-slate-500">{problema ? t(problema) : t(`ayuda_${a.tipo}`)}</span>
         {onMostrar && (

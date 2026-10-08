@@ -10,13 +10,16 @@
 
    Va SIN NOMBRES, igual que el proyector: solo lo que el curso ya vio. De las
    abiertas y las preguntas, solo las aprobadas (con la corrección del docente);
-   de la nube, solo las palabras visibles; del resto, los totales.
+   de la nube, solo las palabras visibles; del resto, los totales. Los cierres
+  igual: la duda, el muro y antes / ahora llevan solo lo aprobado; el
+  semáforo y la apuesta, solo cuántos.
 
    Dura 15 días (el 8-oct-2026 el docente vio que se baja en la misma clase o
    nunca): las reglas no dejan leerlo después (database.rules.json), y
    el proyector borra los vencidos que creó en ese computador.
    ========================================================================== */
-import { abiertas, conteoEncuesta, estadisticaEscala, idAlAzar, nube, preguntasDelCurso, resultadoRanking } from './logic.js'
+import { abiertas, consignasDe, conteoEncuesta, estadisticaEscala, idAlAzar, nube, preguntasDelCurso, resultadoRanking } from './logic.js'
+import { calibracion, lecturaSemaforo, tarjetasMuro } from './cierres.js'
 import { comoLista } from './sala.js'
 import { fondoPizarraValido } from './pizarra.js'
 import { limpiarObjetivo, limpiarTitulo } from './materiales.js'
@@ -51,10 +54,28 @@ export const resultadoDe = (a, respuestas, moderacion) => {
       return { ...base, textos: abiertas(respuestas, moderacion?.abiertas, {}, moderacion?.correcciones).aprobadas.map(r => r.texto) }
     case 'preguntas':
       return { ...base, preguntas: preguntasDelCurso(respuestas, moderacion).aprobadas.map(q => ({ texto: q.texto, votos: q.votos, respondida: q.respondida })) }
+    case 'semaforo':
+      return { ...base, votos: lecturaSemaforo(respuestas).votos }
+    case 'duda':
+      return { ...base, textos: aprobadas(respuestas, moderacion).map(r => r.texto) }
+    case 'muro':
+      return { ...base, textos: tarjetasMuro(aprobadas(respuestas, moderacion)).map(c => c.texto) }
+    case 'antesahora':
+      return {
+        ...base, antes: a.antes || '', ahora: a.ahora || '',
+        items: aprobadas(respuestas, moderacion).map(r => ({ antes: r.antes || '', ahora: r.ahora || '', texto: r.texto })),
+      }
+    case 'apuesta': {
+      const consignas = consignasDe(a)
+      const { apostaron, compararon, exactos, deMas, deMenos } = calibracion(respuestas, consignas.length)
+      return { ...base, consignas, apostaron, compararon, exactos, deMas, deMenos }
+    }
     default:
       return null
   }
 }
+
+const aprobadas = (respuestas, moderacion) => abiertas(respuestas, moderacion?.abiertas, {}, moderacion?.correcciones).aprobadas
 
 /** Una página de la pizarra vale la pena si tiene algo escrito. */
 const paginasConAlgo = (pizarra) => {
@@ -96,6 +117,10 @@ export const tieneAlgo = (r) => {
     case 'ranking': return r.total > 0
     case 'abierta': return r.textos.length > 0
     case 'preguntas': return r.preguntas.length > 0
+    case 'semaforo': return r.votos.some(v => v > 0)
+    case 'duda': case 'muro': return r.textos.length > 0
+    case 'antesahora': return r.items.length > 0
+    case 'apuesta': return r.apostaron > 0
     default: return false
   }
 }

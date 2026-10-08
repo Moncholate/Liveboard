@@ -18,7 +18,7 @@
    versión limpia. El autor ve en su celular qué cambió.
    ========================================================================== */
 import { useState } from 'react'
-import { LIMITES, abiertas, nube, preguntasDelCurso, seVenCorrecciones } from './logic.js'
+import { LIMITES, abiertas, conTexto, nube, preguntasDelCurso, seVenCorrecciones } from './logic.js'
 import { Cambios } from './Cambios.jsx'
 import { useT } from '../i18n.jsx'
 
@@ -30,7 +30,7 @@ const Titulo = ({ children }) => <h3 className="text-xs font-bold uppercase trac
 
 export function Moderacion({
   actividad, respuestas, moderacion, participantes, conNombres = false,
-  onPalabra, onAbierta, onCorregir, onPregunta, onRespondida, onCorregirPregunta, onCorregirPalabra, onVerCorrecciones,
+  onPalabra, onAbierta, onAprobarVarias, onCorregir, onPregunta, onRespondida, onCorregirPregunta, onCorregirPalabra, onVerCorrecciones,
 }) {
   const t = useT()
   const interruptor = onVerCorrecciones && (
@@ -67,12 +67,22 @@ export function Moderacion({
     )
   }
 
-  if (actividad.tipo === 'abierta') {
+  /* Las abiertas y los cierres con texto (la duda, el muro, antes / ahora). */
+  if (conTexto(actividad.tipo)) {
     const { pendientes, aprobadas, descartadas } = abiertas(respuestas, moderacion?.abiertas, participantes, moderacion?.correcciones)
+    /* «Aprobar todas» se salta las que el filtro marcó: esas se miran una por una. */
+    const limpias = pendientes.filter(r => !r.groseria)
     /* Una función y no un componente: definido aquí adentro, React lo trataría
        como uno nuevo en cada respuesta que llega y vaciaría lo que se corrige. */
     const fila = (r, acciones) => (
       <FilaEditable key={r.pid} texto={r.texto} original={r.original} corregida={r.corregida} groseria={r.groseria}
+        encabezado={(r.antes || r.ahora) && (
+          <p className="text-sm mb-0.5">
+            {r.antes && <span className="text-slate-500 line-through">{r.antes}</span>}
+            {r.antes && r.ahora && <span className="text-slate-400"> → </span>}
+            {r.ahora && <span className="text-slate-800">{r.ahora}</span>}
+          </p>
+        )}
         onCorregir={onCorregir && ((txt) => onCorregir(r.pid, txt, r.original))}
         pie={conNombres && <span className="text-xs text-slate-500 truncate">{r.nombre}</span>}
         acciones={acciones} />
@@ -81,7 +91,10 @@ export function Moderacion({
       <div className="flex flex-col gap-4">
         {interruptor}
         <section>
-          <Titulo>{t('porRevisar')} · {pendientes.length}</Titulo>
+          <div className="flex items-center gap-2 mb-1.5">
+            <h3 className="flex-1 text-xs font-bold uppercase tracking-wider text-slate-500">{t('porRevisar')} · {pendientes.length}</h3>
+            {onAprobarVarias && limpias.length > 1 && boton(t('aprobarTodas', limpias.length), 'bg-teal-700 text-white', () => onAprobarVarias(limpias.map(r => r.pid)))}
+          </div>
           {pendientes.length ? (
             <ul className="flex flex-col gap-1.5">
               {pendientes.map(r => (
@@ -194,7 +207,7 @@ function ModerarPreguntas({ respuestas, moderacion, onPregunta, onRespondida, on
    campo de corregir tiene estado, y definido adentro se rearmaba —y se
    vaciaba— cada vez que llegaba otra respuesta.
    `onCorregir(texto)`: con texto vacío se quita la corrección. */
-function FilaEditable({ texto, original, corregida, groseria, tachada = false, apagada = false, unaLinea = false, max = LIMITES.abierta, onCorregir, pie, acciones }) {
+function FilaEditable({ texto, original, corregida, groseria, tachada = false, apagada = false, unaLinea = false, max = LIMITES.abierta, onCorregir, encabezado = null, pie, acciones }) {
   const t = useT()
   const [editando, setEditando] = useState(false)
   const [nuevo, setNuevo] = useState('')
@@ -224,6 +237,7 @@ function FilaEditable({ texto, original, corregida, groseria, tachada = false, a
         </>
       ) : (
         <>
+          {encabezado}
           {corregida
             ? <Cambios antes={original} despues={texto} className={`font-semibold ${apagada ? 'text-slate-500' : 'text-slate-800'} ${tachada ? 'opacity-60' : ''}`} />
             : <p className={`font-semibold break-words ${tachada ? 'text-slate-500 line-through' : apagada ? 'text-slate-500' : 'text-slate-800'}`}>{texto}</p>}

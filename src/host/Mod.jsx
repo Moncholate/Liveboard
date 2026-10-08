@@ -12,11 +12,13 @@
 import { useMemo } from 'react'
 import { useStore, useValue } from '../net/hooks.js'
 import { Button, Center, Logo } from '../ui.jsx'
-import { cuantosRespondieron } from '../live/logic.js'
+import { consignasDe, cuantosRespondieron, moderable, problemaDe, tituloDe } from '../live/logic.js'
+import { faseApuesta } from '../live/cierres.js'
 import { ProveedorIdioma, traducir, useT, valido } from '../i18n.jsx'
 import { accionesDeSala, comoLista, conectados, raiz } from '../live/sala.js'
 import { Moderacion } from '../live/Moderacion.jsx'
-import { Encuesta, Escala, Nube, Ranking } from '../live/Resultados.jsx'
+import { Apuesta, Encuesta, Escala, Nube, Ranking, Semaforo, TextoConHuecos } from '../live/Resultados.jsx'
+import { FasesApuesta } from './Host.jsx'
 import { useTema } from '../tema.jsx'
 
 export default function Mod({ pin, clave }) {
@@ -62,15 +64,15 @@ function Panel({ store, pin, clave }) {
             <p className="text-slate-600">{t('preparandoElige')}</p>
             {actividades.length === 0 && <p className="text-sm text-slate-500">{t('sinActividades')}</p>}
             {actividades.map((a, i) => (
-              <button key={a.id || i} onClick={() => acciones.mostrar(i)} disabled={!a.pregunta}
+              <button key={a.id || i} onClick={() => acciones.mostrar(i, a.tipo)} disabled={Boolean(problemaDe(a))}
                 className="rounded-xl border border-slate-200 bg-white p-3 text-left disabled:opacity-50">
                 <span className="block text-xs font-bold text-teal-800">{i + 1} · {t(`tipo_${a.tipo}`)}</span>
-                <span className="block font-semibold text-slate-900">{a.pregunta || t('sinPregunta')}</span>
+                <span className="block font-semibold text-slate-900">{tituloDe(a, t) || t('sinPregunta')}</span>
               </button>
             ))}
           </div>
         ) : (
-          <EnVivo store={store} base={base} idx={idx} total={actividades.length} actividad={actividad}
+          <EnVivo store={store} base={base} idx={idx} actividades={actividades} actividad={actividad}
             estado={estado} participantes={participantes} acciones={acciones} />
         )}
       </main>
@@ -78,8 +80,11 @@ function Panel({ store, pin, clave }) {
   )
 }
 
-function EnVivo({ store, base, idx, total, actividad, estado, participantes, acciones }) {
+function EnVivo({ store, base, idx, actividades, actividad, estado, participantes, acciones }) {
   const t = useT()
+  const total = actividades.length
+  const ir = (i) => acciones.mostrar(i, actividades[i]?.tipo)
+  const apuesta = actividad.tipo === 'apuesta'
   const aid = actividad.id
   const respuestas = useValue(store, `${base}/respuestas/${aid}`)
   const moderacion = useValue(store, `${base}/moderacion/${aid}`)
@@ -89,24 +94,28 @@ function EnVivo({ store, base, idx, total, actividad, estado, participantes, acc
     <>
       <section>
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{t(`tipo_${actividad.tipo}`)} · {t('deTotal', idx + 1, total)}</p>
-        <h1 className="text-xl font-black text-slate-900 leading-snug">{actividad.pregunta}</h1>
+        <h1 className="text-xl font-black text-slate-900 leading-snug"><TextoConHuecos texto={tituloDe(actividad, t)} /></h1>
         <p className="text-sm text-slate-600 mt-1">{t('respondieron', n)}{estado.abierta ? '' : ` · ${t('cerradas')}`}</p>
       </section>
 
       <section className="grid grid-cols-2 gap-2">
-        <Button variant="ghost" className="!py-2 text-sm" onClick={() => acciones.mostrar(idx - 1)} disabled={idx === 0}>{t('anterior')}</Button>
+        <Button variant="ghost" className="!py-2 text-sm" onClick={() => ir(idx - 1)} disabled={idx === 0}>{t('anterior')}</Button>
         {idx < total - 1
-          ? <Button className="!py-2 text-sm" onClick={() => acciones.mostrar(idx + 1)}>{t('siguiente')}</Button>
+          ? <Button className="!py-2 text-sm" onClick={() => ir(idx + 1)}>{t('siguiente')}</Button>
           : <Button className="!py-2 text-sm" onClick={acciones.volverAPreparar}>{t('terminar')}</Button>}
         <Button variant="ghost" className="!py-2 text-sm" onClick={() => acciones.abrir(!estado.abierta)}>
           {estado.abierta ? t('cerrarRespuestas') : t('reabrir')}
         </Button>
-        <Button variant="ghost" className="!py-2 text-sm" onClick={() => acciones.resultados(!estado.resultados)}>
-          {estado.resultados ? t('ocultarResultados') : t('mostrarResultados')}
-        </Button>
+        {apuesta ? (
+          <div className="flex gap-2"><FasesApuesta fase={faseApuesta(estado)} acciones={acciones} className="flex-1 !px-2 !py-2 text-sm" /></div>
+        ) : (
+          <Button variant="ghost" className="!py-2 text-sm" onClick={() => acciones.resultados(!estado.resultados)}>
+            {estado.resultados ? t('ocultarResultados') : t('mostrarResultados')}
+          </Button>
+        )}
         {/* La columna de moderación en el proyector: para corregir en grupo
             mientras se modera desde aquí. */}
-        {['nube', 'abierta', 'preguntas'].includes(actividad.tipo) && (
+        {moderable(actividad.tipo) && (
           <Button variant="ghost" onClick={() => acciones.moderando(!estado.moderando)}
             className={`col-span-2 !py-2 text-sm ${estado.moderando ? '!border-teal-600 !text-teal-800 !bg-teal-50' : ''}`}>
             {estado.moderando ? `● ${t('moderacionEnProyector')}` : t('mostrarModeracion')}
@@ -114,12 +123,13 @@ function EnVivo({ store, base, idx, total, actividad, estado, participantes, acc
         )}
       </section>
 
-      {['nube', 'abierta', 'preguntas'].includes(actividad.tipo) ? (
+      {moderable(actividad.tipo) ? (
         <section>
           <h2 className="font-black text-slate-900 mb-2">{t('moderar')}</h2>
           <Moderacion actividad={actividad} respuestas={respuestas} moderacion={moderacion} participantes={participantes} conNombres
             onPalabra={(clave, d) => acciones.moderarPalabra(aid, clave, d)}
             onAbierta={(pid, d) => acciones.decidirAbierta(aid, pid, d)}
+            onAprobarVarias={(pids) => acciones.aprobarVarias(aid, pids)}
             onCorregir={(pid, texto, de) => acciones.corregirAbierta(aid, pid, texto, de)}
             onPregunta={(qid, d) => acciones.decidirPregunta(aid, qid, d)}
             onRespondida={(qid, si) => acciones.marcarRespondida(aid, qid, si)}
@@ -131,6 +141,8 @@ function EnVivo({ store, base, idx, total, actividad, estado, participantes, acc
         <section className="rounded-2xl bg-white border border-slate-200 p-4">
           {actividad.tipo === 'encuesta' ? <Encuesta actividad={actividad} respuestas={respuestas} chico />
             : actividad.tipo === 'ranking' ? <Ranking actividad={actividad} respuestas={respuestas} chico />
+            : actividad.tipo === 'semaforo' ? <Semaforo respuestas={respuestas} chico />
+            : apuesta ? <Apuesta consignas={consignasDe(actividad)} respuestas={respuestas} fase={faseApuesta(estado)} chico />
             : <Escala respuestas={respuestas} chico />}
         </section>
       )}

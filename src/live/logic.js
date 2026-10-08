@@ -12,8 +12,29 @@
 import { esGroseria } from './groserias.js'
 
 /* Los tipos de actividad, en el orden en que se ofrecen. Sus nombres y su
-   ayuda están en i18n.jsx (tipo_nube, ayuda_nube…), en los dos idiomas. */
-export const TIPOS = ['nube', 'encuesta', 'escala', 'abierta', 'ranking', 'preguntas']
+   ayuda están en i18n.jsx (tipo_nube, ayuda_nube…), en los dos idiomas.
+
+   LOS CIERRES (8-oct-2026) son las cinco herramientas de cierre de Teacher's
+   Utility Belt, ahora con el curso respondiendo desde el celular. En el Belt
+   siguen funcionando sin internet; su botón «Hacer con celulares» abre una
+   sala de Liveboard con lo que el docente escribió ya cargado (traida.js).
+   Su lógica propia —huecos, semáforo, apuesta, muro— está en cierres.js. */
+export const BASICOS = ['nube', 'encuesta', 'escala', 'abierta', 'ranking', 'preguntas']
+export const CIERRES = ['semaforo', 'duda', 'apuesta', 'antesahora', 'muro']
+export const TIPOS = [...BASICOS, ...CIERRES]
+
+/** Los que llevan texto libre y se moderan como las abiertas: solo se
+    proyectan los que el docente aprueba, y se pueden corregir. */
+export const conTexto = (tipo) => ['abierta', 'duda', 'muro', 'antesahora'].includes(tipo)
+export const moderable = (tipo) => conTexto(tipo) || tipo === 'nube' || tipo === 'preguntas'
+
+/** Antes / Ahora y la apuesta se explican solos: la pregunta es opcional y,
+    sin ella, el título es el nombre del tipo (tituloDe). */
+export const preguntaOpcional = (tipo) => tipo === 'antesahora' || tipo === 'apuesta'
+
+/** El semáforo arranca con el resultado tapado, como en el Belt: si el verde
+    ya se ve lleno, el que dudaba elige verde. Se destapa con «Mostrar resultados». */
+export const empiezaOculta = (tipo) => tipo === 'semaforo'
 
 export const LIMITES = {
   pregunta: 140,
@@ -27,7 +48,42 @@ export const LIMITES = {
   minRanking: 3,
   maxRanking: 6,
   preguntasPorPersona: 3,
+  /* Antes / Ahora: cada lado es una idea corta; el «porque» usa el largo de
+     una abierta, que es la parte que vale. */
+  lado: 60,
+  /* Apuesta: las consignas, una por línea. Con más de 8, escribirlas no cabe
+     en un cierre. */
+  consigna: 140,
+  maxConsignas: 8,
 }
+
+/* ── Los huecos de un molde ────────────────────────────────────────────────
+   La duda y el muro proyectan una frase que el docente escribe con huecos, como
+   en el pizarrón: una fila de guiones bajos. Tres o más, porque dos aparecen en
+   nombres de archivo. Es la misma regla de molde.js del Belt. */
+
+/** Parte una frase en trozos `{ tipo: 'texto' | 'hueco', valor }`. */
+export const partirEnHuecos = (texto) => {
+  const s = String(texto == null ? '' : texto)
+  if (!s) return []
+  const trozos = []
+  const re = /_{3,}/g
+  let ultimo = 0, m
+  while ((m = re.exec(s)) !== null) {
+    if (m.index > ultimo) trozos.push({ tipo: 'texto', valor: s.slice(ultimo, m.index) })
+    trozos.push({ tipo: 'hueco', valor: m[0] })
+    ultimo = m.index + m[0].length
+  }
+  if (ultimo < s.length) trozos.push({ tipo: 'texto', valor: s.slice(ultimo) })
+  return trozos
+}
+
+/** ¿Hay algo que proyectar? Un molde de puros huecos no dice nada. */
+export const tieneTexto = (texto) => partirEnHuecos(texto).some(t => t.tipo === 'texto' && t.valor.trim())
+
+/** El título de una actividad: su pregunta, o el nombre del tipo si la pregunta
+    es opcional y quedó vacía. `t` es el traductor de la sala. */
+export const tituloDe = (a, t) => String(a?.pregunta || '').trim() || (preguntaOpcional(a?.tipo) ? t(`tipo_${a.tipo}`) : '')
 
 /** Cuántas alternativas lleva cada tipo. Un ranking de 2 sería una encuesta,
     y con más de 6 ordenar en el celular se vuelve un trámite. */
@@ -54,13 +110,26 @@ export const actividadNueva = (tipo, azar = Math.random) => ({
   tipo,
   pregunta: '',
   ...(conAlternativas(tipo) ? { alternativas: Array(rangoAlternativas(tipo).min).fill('') } : {}),
+  ...(tipo === 'antesahora' ? { antes: '', ahora: '' } : {}),
+  ...(tipo === 'apuesta' ? { consignas: [''] } : {}),
 })
+
+/** Las consignas de una apuesta, limpias: sin líneas vacías y hasta 8. */
+export const consignasDe = (a) => (Array.isArray(a?.consignas) ? a.consignas : Object.values(a?.consignas || {}))
+  .map(x => String(x == null ? '' : x).replace(/\s+/g, ' ').trim().slice(0, LIMITES.consigna))
+  .filter(Boolean)
+  .slice(0, LIMITES.maxConsignas)
+
+/** Un lado de Antes / Ahora, limpio. */
+export const limpiarLado = (s) => String(s == null ? '' : s).normalize('NFC').replace(/\s+/g, ' ').trim().slice(0, LIMITES.lado)
 
 /** ¿Se puede lanzar? Devuelve el motivo si no —una clave de i18n.jsx
     (prob_sinPregunta…)— para decirlo en pantalla en el idioma de la sala. */
 export const problemaDe = (a) => {
   if (!a || !TIPOS.includes(a.tipo)) return 'prob_sinTipo'
-  if (!String(a.pregunta || '').trim()) return 'prob_sinPregunta'
+  if (!preguntaOpcional(a.tipo) && !String(a.pregunta || '').trim()) return 'prob_sinPregunta'
+  if ((a.tipo === 'duda' || a.tipo === 'muro') && !tieneTexto(a.pregunta)) return 'prob_sinMolde'
+  if (a.tipo === 'apuesta' && !consignasDe(a).length) return 'prob_sinConsignas'
   if (conAlternativas(a.tipo)) {
     const llenas = (a.alternativas || []).filter(x => String(x).trim())
     if (llenas.length < rangoAlternativas(a.tipo).min) return a.tipo === 'ranking' ? 'prob_pocosElementos' : 'prob_pocasAlternativas'
@@ -76,6 +145,10 @@ export const limpiarActividad = (a) => ({
   ...(conAlternativas(a.tipo)
     ? { alternativas: (a.alternativas || []).map(x => String(x).trim().slice(0, LIMITES.alternativa)).filter(Boolean).slice(0, rangoAlternativas(a.tipo).max) }
     : {}),
+  /* Un lado vacío significa «que lo escriba cada uno»: no se guarda. */
+  ...(a.tipo === 'antesahora' && limpiarLado(a.antes) ? { antes: limpiarLado(a.antes) } : {}),
+  ...(a.tipo === 'antesahora' && limpiarLado(a.ahora) ? { ahora: limpiarLado(a.ahora) } : {}),
+  ...(a.tipo === 'apuesta' ? { consignas: consignasDe(a) } : {}),
 })
 
 /* ── Palabras ──────────────────────────────────────────────────────────── */
@@ -313,6 +386,10 @@ export const abiertas = (respuestas, decisiones = {}, participantes = {}, correc
         corregida: Boolean(c),
         at: typeof r?.at === 'number' ? r.at : 0,
         nombre: participantes?.[pid]?.nombre || '',
+        /* Antes / Ahora: los lados que escribió el estudiante (los que el
+           docente dejó en blanco). `texto` es su «porque». */
+        ...(limpiarLado(r?.antes) ? { antes: limpiarLado(r.antes) } : {}),
+        ...(limpiarLado(r?.ahora) ? { ahora: limpiarLado(r.ahora) } : {}),
         decision: decisiones?.[pid] === true ? true : decisiones?.[pid] === false ? false : null,
         groseria: esGroseria(r?.texto),
       }

@@ -11,6 +11,7 @@ import { useStore } from '../net/hooks.js'
 import { Button, Center, Logo } from '../ui.jsx'
 import { ProveedorIdioma, idiomaDelNavegador, traducir, useT } from '../i18n.jsx'
 import { ALTERNATIVAS } from '../live/logic.js'
+import { LAMPARA, NIVELES } from '../live/cierres.js'
 import { rutaResumen } from '../live/resumen.js'
 import { imagenesDePagina } from '../live/imagenPizarra.js'
 import { useTema } from '../tema.jsx'
@@ -44,6 +45,8 @@ export const normalizar = (r) => ({
     palabras: lista(a.palabras),
     textos: lista(a.textos),
     preguntas: lista(a.preguntas),
+    items: lista(a.items),
+    consignas: lista(a.consignas),
   })),
   pizarra: { fondo: r.pizarra?.fondo || 'blanco', paginas: lista(r.pizarra?.paginas) },
 })
@@ -129,6 +132,48 @@ function Actividad({ a, n }) {
     ))
   } else if (a.tipo === 'abierta') {
     cuerpo = a.textos.map((texto, i) => <p key={i} className="rounded-xl bg-white border border-slate-200 p-3 font-semibold text-slate-800 break-words">{texto}</p>)
+  } else if (a.tipo === 'semaforo') {
+    const total = a.votos.reduce((s, v) => s + (v || 0), 0)
+    cuerpo = NIVELES.map((nv, i) => {
+      const pct = total ? Math.round(((a.votos[i] || 0) / total) * 100) : 0
+      return (
+        <div key={nv.id}>
+          <div className="flex justify-between gap-3 font-semibold text-slate-800"><span>{nv.texto}</span><span className="shrink-0 tabular-nums text-slate-500">{a.votos[i] || 0} · {pct}%</span></div>
+          <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${pct}%`, background: LAMPARA[nv.id] }} /></div>
+        </div>
+      )
+    })
+  } else if (a.tipo === 'duda' || a.tipo === 'muro') {
+    cuerpo = a.textos.map((texto, i) => <p key={i} className="rounded-xl bg-white border border-slate-200 p-3 font-semibold text-slate-800 break-words">{texto}</p>)
+  } else if (a.tipo === 'antesahora') {
+    cuerpo = (
+      <>
+        {(a.antes || a.ahora) && (
+          <p className="text-slate-700"><span className="line-through text-slate-500">{a.antes || '______'}</span> → <b>{a.ahora || '______'}</b></p>
+        )}
+        {a.items.map((r, i) => (
+          <div key={i} className="rounded-xl bg-white border border-slate-200 p-3 break-words">
+            {(r.antes || r.ahora) && <p className="text-sm"><span className="line-through text-slate-500">{r.antes}</span>{r.antes && r.ahora && ' → '}<b className="text-slate-800">{r.ahora}</b></p>}
+            <p className="font-semibold text-slate-800"><span className="font-normal text-slate-500">{t('porque')} </span>{r.texto}</p>
+          </div>
+        ))}
+      </>
+    )
+  } else if (a.tipo === 'apuesta') {
+    cuerpo = (
+      <>
+        <ol className="list-decimal pl-6 text-slate-800">{a.consignas.map((c, i) => <li key={i}>{c}</li>)}</ol>
+        <div className="grid grid-cols-3 gap-2">
+          {[['exacto', a.exactos], ['deMas', a.deMas], ['deMenos', a.deMenos]].map(([id, n]) => (
+            <div key={id} className="rounded-xl bg-white border border-slate-200 p-3 text-center">
+              <p className="text-2xl font-black text-slate-900 tabular-nums">{n}</p>
+              <p className="text-xs text-slate-600">{t(`calib_${id}`)}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-sm text-slate-500">{t('compararonN', a.compararon, a.apostaron)}</p>
+      </>
+    )
   } else if (a.tipo === 'preguntas') {
     cuerpo = a.preguntas.map((q, i) => (
       <div key={i} className={`rounded-xl bg-white border border-slate-200 p-3 ${q.respondida ? 'opacity-70' : ''}`}>
@@ -140,7 +185,7 @@ function Actividad({ a, n }) {
   return (
     <section className="flex flex-col gap-2 border-t border-slate-200 pt-4">
       <p className="text-xs font-bold uppercase tracking-wider text-teal-800">{n + 1}. {t(`tipo_${a.tipo}`)}</p>
-      <h2 className="text-lg font-black text-slate-900 leading-snug">{a.pregunta}</h2>
+      {a.pregunta && <h2 className="text-lg font-black text-slate-900 leading-snug">{a.pregunta}</h2>}
       {cuerpo}
     </section>
   )

@@ -4,7 +4,8 @@
    Los usa el proyector (grandes) y el celular del docente (`chico`). Ninguno
    recibe nombres: lo que se dibuja aquí lo ve todo el curso.
    ========================================================================== */
-import { ALTERNATIVAS, conteoEncuesta, estadisticaEscala, nube, resultadoRanking, tamanoEnNube } from './logic.js'
+import { ALTERNATIVAS, conteoEncuesta, estadisticaEscala, nube, partirEnHuecos, resultadoRanking, tamanoEnNube } from './logic.js'
+import { CARCASA, CARCASA_INT, LAMPARA, TINTA_LAMPARA, calibracion, formaMuro, lecturaSemaforo, tarjetasMuro } from './cierres.js'
 import { useT } from '../i18n.jsx'
 import { Cambios } from './Cambios.jsx'
 
@@ -101,13 +102,17 @@ export function Escala({ respuestas, chico = false }) {
    el docente quiere que el curso aprenda del error; como no lleva nombre, no
    expone a nadie). Con `verCambios` apagado se ve solo la versión limpia, con
    un ✎ discreto. */
-export function Abiertas({ aprobadas, chico = false, sobreFondo = false, verCambios = true }) {
+/* `prefijo`: lo que va antes de cada texto, apagado («…porque» en Antes /
+   Ahora). Los lados que escribió cada uno (r.antes, r.ahora) van arriba. */
+export function Abiertas({ aprobadas, chico = false, sobreFondo = false, verCambios = true, prefijo = null }) {
   const t = useT()
   if (!aprobadas.length) return <Vacio chico={chico}>{t('vacioAbiertas')}</Vacio>
   return (
     <div className={`w-full grid ${chico ? 'gap-2' : 'gap-4 sm:grid-cols-2 xl:grid-cols-3'}`}>
       {aprobadas.map(r => (
         <div key={r.pid} className={`relative rounded-2xl bg-white border border-slate-200 font-semibold text-slate-800 animate-pop ${chico ? 'p-2 text-sm' : 'p-5 text-2xl'} ${sobreFondo ? 'shadow-lg' : ''}`}>
+          {(r.antes || r.ahora) && <Lados antes={r.antes} ahora={r.ahora} chico={chico} />}
+          {prefijo && <span className="font-normal text-slate-500">{prefijo} </span>}
           {r.corregida && verCambios ? <Cambios antes={r.original} despues={r.texto} /> : r.texto}
           {r.corregida && !verCambios && (
             <span title={t('corregida')} aria-label={t('corregida')}
@@ -172,6 +177,180 @@ export function Preguntas({ aprobadas, chico = false, sobreFondo = false, verCam
           {q.respondida && <span className={`shrink-0 font-bold text-slate-500 ${chico ? 'text-xs' : 'text-base'}`}>✓ {t('respondida')}</span>}
         </div>
       ))}
+    </div>
+  )
+}
+
+/* ── Cierres ──────────────────────────────────────────────────────────── */
+
+/* Un molde con los huecos apagados, como en el Belt: en la misma tinta que las
+   palabras compiten con ellas, y lo que hay que leer es la frase. */
+export function TextoConHuecos({ texto }) {
+  return (
+    <>
+      {partirEnHuecos(texto).map((x, i) => (x.tipo === 'hueco'
+        ? <span key={i} className="text-slate-400">{x.valor}</span>
+        : <span key={i}>{x.valor}</span>))}
+    </>
+  )
+}
+
+/* Lo que pensaba (tachado: quedó atrás) → lo que pienso ahora. */
+function Lados({ antes, ahora, chico }) {
+  return (
+    <p className={`mb-1 ${chico ? 'text-xs' : 'text-xl'}`}>
+      {antes && <span className="text-slate-500 line-through decoration-2">{antes}</span>}
+      {antes && ahora && <span className="text-slate-400"> → </span>}
+      {ahora && <span className="text-slate-900">{ahora}</span>}
+    </p>
+  )
+}
+
+/* El SEMÁFORO del cierre, como el del Belt: una carcasa oscura con tres
+   lámparas que cambian de brillo y de tamaño a la vez (un proyector con luz
+   aplasta el brillo; el tamaño sobrevive). El hueco de cada lámpara mide
+   siempre lo máximo, para que las tres no se muevan en cada voto. */
+export function Semaforo({ respuestas, chico = false }) {
+  const t = useT()
+  const r = lecturaSemaforo(respuestas)
+  const lado = chico ? '2.25rem' : 'min(11vh, 6.5rem)'
+  return (
+    <div className={`w-full flex flex-col items-center ${chico ? 'gap-2' : 'gap-5'}`}>
+      <div className={`w-full max-w-4xl rounded-3xl ${chico ? 'p-3' : 'px-8 py-6'}`} style={{ background: CARCASA }}>
+        <div className={`flex flex-col ${chico ? 'gap-2' : 'gap-4'}`}>
+          {r.luces.map(l => (
+            <div key={l.id} className={`flex items-center ${chico ? 'gap-3' : 'gap-6'}`}>
+              <div className="relative shrink-0 grid place-items-center" style={{ width: lado, height: lado }}>
+                <span aria-hidden="true" className="absolute inset-0 rounded-full" style={{ background: CARCASA_INT, border: '1px solid rgba(255,255,255,.07)' }} />
+                <span aria-hidden="true" className="relative rounded-full transition-all duration-500"
+                  style={{
+                    width: `calc(${lado} * ${l.tamano} * 0.86)`, height: `calc(${lado} * ${l.tamano} * 0.86)`,
+                    background: LAMPARA[l.id], opacity: l.brillo,
+                    boxShadow: l.brillo > 0.3 ? `0 0 ${Math.round(l.brillo * (chico ? 20 : 60))}px ${LAMPARA[l.id]}` : 'none',
+                  }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className={`font-semibold leading-snug ${chico ? 'text-sm' : 'text-3xl'}`} style={{ color: '#fff' }}>{l.texto}</p>
+                <p className={`font-bold tabular-nums ${chico ? 'text-xs' : 'text-2xl'}`} style={{ color: TINTA_LAMPARA[l.id] }}>{l.votos}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className={`text-center font-bold text-slate-900 ${chico ? 'text-sm' : 'text-3xl'}`}>
+        {!r.total ? t('sinRespuestas') : r.dominante ? t(`cursoEn_${r.dominante}`) : t('cursoRepartido')}
+      </p>
+    </div>
+  )
+}
+
+/* EL MURO: todas las tarjetas a la vista a la vez, porque lo que se ve al
+   final es que veinticinco cosas chicas juntas son un avance. Encogen en
+   escalones para caber (proyectando, hacer scroll es perderlo). */
+export function Muro({ aprobadas, chico = false, sobreFondo = false, verCambios = true }) {
+  const t = useT()
+  const tarjetas = tarjetasMuro(aprobadas)
+  if (!tarjetas.length) return <Vacio chico={chico}>{t('vacioMuro')}</Vacio>
+  const f = formaMuro(tarjetas.length)
+  return (
+    <div className={`w-full flex flex-col ${chico ? 'gap-2' : 'gap-4'}`}>
+      {!chico && <p className="text-center text-xl font-bold uppercase tracking-wider text-teal-800">{t('muroTitulo')}</p>}
+      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${chico ? 2 : f.columnas}, minmax(0, 1fr))` }}>
+        {tarjetas.map(c => (
+          <div key={c.clave} className={`relative rounded-xl border border-teal-200 bg-teal-50 text-teal-900 font-semibold break-words animate-pop ${chico ? 'px-2 py-1 text-xs' : 'px-3 py-2'} ${sobreFondo ? 'shadow-lg' : ''}`}
+            style={chico ? undefined : { fontSize: `calc(2.4rem * ${f.escala})` }}>
+            {c.corregida && verCambios ? <Cambios antes={c.original} despues={c.texto} /> : c.texto}
+            {c.cuantos > 1 && <span className="ml-1.5 font-black text-teal-700 tabular-nums" style={{ fontSize: '0.7em' }}>×{c.cuantos}</span>}
+          </div>
+        ))}
+      </div>
+      <p className={`text-center font-bold text-slate-900 ${chico ? 'text-xs' : 'text-2xl'}`}>{t('logrosN', aprobadas.length)}</p>
+    </div>
+  )
+}
+
+/* Los dos lados que escribió el docente en Antes / Ahora, una vez arriba de
+   las respuestas. El de la izquierda tachado: es lo que YA NO se piensa. Un
+   lado en blanco se ve como hueco: lo escribe cada uno. */
+export function MarcoAntesAhora({ antes, ahora, chico = false }) {
+  const t = useT()
+  const lado = (rotulo, frase, cola, viejo) => (
+    <div className={`flex-1 rounded-xl border ${viejo ? 'border-slate-200 bg-slate-50' : 'border-slate-300 bg-white'} ${chico ? 'p-2' : 'px-5 py-4'}`}>
+      <p className={`font-bold uppercase tracking-wider text-slate-500 ${chico ? 'text-[10px]' : 'text-sm'}`}>{rotulo}</p>
+      <p className={`font-bold leading-tight ${chico ? 'text-sm' : 'text-3xl mt-1'} ${!frase ? 'text-slate-400' : viejo ? 'text-slate-600 line-through decoration-2' : 'text-slate-900'}`}>
+        {frase || '______'}
+      </p>
+      <p className={`text-slate-500 ${chico ? 'text-xs' : 'text-lg mt-1'}`}>{cola}</p>
+    </div>
+  )
+  return (
+    <div className={`w-full flex ${chico ? 'gap-2' : 'gap-4'}`}>
+      {lado(t('antesPensaba'), antes, t('queEstabaBien'), true)}
+      {lado(t('ahoraPienso'), ahora, `${t('porque')} ______`, false)}
+    </div>
+  )
+}
+
+/* Las consignas de la apuesta, numeradas: se apuesta sobre «cuántas de estas»
+   y hay que poder señalar cuál falló. */
+/* `medio`: en el proyector al comparar, debajo de los resultados. */
+export function Consignas({ consignas, chico = false, medio = false }) {
+  const [num, txt] = chico ? ['text-xs', 'text-sm'] : medio ? ['text-lg', 'text-2xl'] : ['text-2xl', 'text-3xl']
+  return (
+    <ol className={`w-full max-w-5xl mx-auto flex flex-col ${chico ? 'gap-1' : 'gap-2'}`}>
+      {consignas.map((c, i) => (
+        <li key={i} className="flex items-baseline gap-3 border-b border-slate-200 pb-1.5 last:border-b-0">
+          <span className={`font-bold text-slate-500 tabular-nums shrink-0 ${num}`}>{i + 1}</span>
+          <span className={`font-semibold text-slate-900 ${txt}`}>{c}</span>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+/* LA APUESTA en el proyector, por fase. Al apostar, las consignas
+   DESAPARECEN: con la lista delante, apostar se vuelve revisarlas una por una.
+   Al comparar se ve cuántos acertaron su apuesta, nunca quiénes. */
+export function Apuesta({ consignas, respuestas, fase, chico = false }) {
+  const t = useT()
+  const n = consignas.length
+  if (fase === 'escribir') {
+    return (
+      <div className={`w-full flex flex-col ${chico ? 'gap-2' : 'gap-5'}`}>
+        <p className={`text-center font-bold uppercase tracking-wider text-teal-800 ${chico ? 'text-xs' : 'text-xl'}`}>{t('escribelas', n)}</p>
+        <Consignas consignas={consignas} chico={chico} />
+      </div>
+    )
+  }
+  const c = calibracion(respuestas, n)
+  if (fase === 'apostar') {
+    return (
+      <div className={`w-full flex flex-col items-center text-center ${chico ? 'gap-1' : 'gap-4'}`}>
+        <p className={`font-black text-slate-900 leading-tight ${chico ? 'text-base' : 'text-5xl'}`}>{t('cuantasCrees', n)}</p>
+        {!chico && <p aria-hidden="true" className="text-[9rem] leading-none font-black text-slate-400 select-none">?</p>}
+        <p className={`text-slate-500 ${chico ? 'text-xs' : 'text-2xl'}`}>{t('sinMirar')}</p>
+        <p className={`font-bold text-slate-700 tabular-nums ${chico ? 'text-sm' : 'text-3xl'}`}>{t('apostaronN', c.apostaron)}</p>
+      </div>
+    )
+  }
+  const numero = (x) => x.toLocaleString(t.idioma === 'en' ? 'en-US' : 'es-CL')
+  const bloques = [['exacto', c.exactos], ['deMas', c.deMas], ['deMenos', c.deMenos]]
+  return (
+    <div className={`w-full flex flex-col ${chico ? 'gap-2' : 'gap-5'}`}>
+      {!chico && <Consignas consignas={consignas} medio />}
+      <div className={`grid grid-cols-3 ${chico ? 'gap-2' : 'gap-4'} w-full max-w-5xl mx-auto`}>
+        {bloques.map(([id, cuantos]) => (
+          <div key={id} className={`rounded-2xl border border-slate-200 bg-white text-center ${chico ? 'p-2' : 'p-5'}`}>
+            <p className={`font-black text-slate-900 tabular-nums ${chico ? 'text-xl' : 'text-7xl'}`}>{cuantos}</p>
+            <p className={`font-semibold text-slate-600 ${chico ? 'text-[11px] leading-tight' : 'text-xl mt-1'}`}>{t(`calib_${id}`)}</p>
+          </div>
+        ))}
+      </div>
+      <p className={`text-center text-slate-500 ${chico ? 'text-xs' : 'text-xl'}`}>
+        {t('compararonN', c.compararon, c.apostaron)}
+        {c.compararon > 0 && ` · ${t('promediosApuesta', numero(c.promApuesta), numero(c.promTuve))}`}
+      </p>
+      {!chico && <p className="text-center text-3xl font-bold text-slate-900">{t('enCualSobro')}</p>}
     </div>
   )
 }

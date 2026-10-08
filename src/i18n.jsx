@@ -42,11 +42,39 @@ export const TEXTOS = {
   ayuda_preguntas: { es: 'Los estudiantes te hacen preguntas sin su nombre y votan las de otros. Solo se proyectan las que apruebas.', en: 'Students ask you questions without their names and vote for others’ questions. Only the ones you approve are shown.' },
   escala: { es: ['Nada', 'Poco', 'Más o menos', 'Bastante', 'Mucho'], en: ['Not at all', 'A little', 'Somewhat', 'Quite', 'Very much'] },
 
+  // Cierres (las herramientas de cierre del Utility Belt, con celulares)
+  tipo_semaforo: { es: 'Semáforo', en: 'Traffic light' },
+  tipo_duda: { es: 'La duda', en: 'The doubt' },
+  tipo_apuesta: { es: 'Apuesta', en: 'The bet' },
+  tipo_antesahora: { es: 'Antes / Ahora', en: 'Then / Now' },
+  tipo_muro: { es: 'El muro', en: 'The wall' },
+  ayuda_semaforo: { es: 'Escribe el objetivo de hoy. Cada uno elige su nivel en el celular, y el semáforo se ve cuando muestras los resultados.', en: 'Write today’s objective. Everyone chooses their level on the phone, and the traffic light shows when you show the results.' },
+  ayuda_duda: { es: 'Un molde con huecos (______) que cada uno completa con lo que le quedó a medias. Solo se proyectan las que apruebas.', en: 'A frame with blanks (______) that everyone completes with what is still unclear. Only the ones you approve are shown.' },
+  ayuda_apuesta: { es: 'Escriben las consignas en el cuaderno, apuestan cuántas tienen bien y recién entonces corrigen. Se ve cuántos acertaron su apuesta, sin nombres.', en: 'They write the prompts in their notebooks, bet how many are right, and only then check. It shows how many got their bet right, with no names.' },
+  ayuda_antesahora: { es: 'Qué pensaban antes y qué piensan ahora, y por qué. Los dos lados los escribes tú, o se dejan en blanco para que cada uno ponga el suyo.', en: 'What they used to think, what they think now, and why. You write both sides, or leave them blank so everyone writes their own.' },
+  ayuda_muro: { es: 'Un molde (Hoy pude ______). Cada uno nombra algo que hoy pudo y el muro se llena con lo que apruebas.', en: 'A frame (Today I could ______). Everyone names something they managed today and the wall fills up with what you approve.' },
+  paraCerrar: { es: 'Para cerrar la clase', en: 'To close the lesson' },
+  escribeObjetivo: { es: 'El objetivo de hoy, como se lo dirías al curso', en: 'Today’s objective, as you would say it to the class' },
+  moldeEj_duda: { es: 'De lo de hoy, todavía no me sale ______.', en: 'From today, I still cannot ______.' },
+  moldeEj_muro: { es: 'Hoy pude ______.', en: 'Today I could ______.' },
+  moldeAyuda: { es: 'Los huecos se escriben con guiones bajos: ______', en: 'Write the blanks with underscores: ______' },
+  tituloOpcional: { es: 'Título (opcional)', en: 'Title (optional)' },
+  antesPensaba: { es: 'Antes pensaba…', en: 'I used to think…' },
+  ahoraPienso: { es: 'Ahora pienso…', en: 'Now I think…' },
+  queEstabaBien: { es: '…que estaba bien.', en: '…that it was fine.' },
+  porque: { es: '…porque', en: '…because' },
+  ladosEnBlanco: { es: 'En blanco, cada uno escribe el suyo.', en: 'Leave them blank and everyone writes their own.' },
+  consignas: { es: 'Las consignas, una por línea (hasta 8)', en: 'The prompts, one per line (up to 8)' },
+  consignasEj: { es: 'Explica qué hace el núcleo\nResuelve 3x + 5 = 20', en: 'Use “although” in a sentence\nA question with “how often”' },
+  consignasReparte: { es: 'Que repartan: si todas son del mismo tipo, se acierta o se falla en bloque y la apuesta no mide nada.', en: 'Spread them out: if they are all the same kind, you get them all right or all wrong and the bet measures nothing.' },
+
   // Problemas al preparar
   prob_sinTipo: { es: 'Elige un tipo de actividad.', en: 'Choose an activity type.' },
   prob_sinPregunta: { es: 'Falta la pregunta.', en: 'The question is missing.' },
   prob_pocasAlternativas: { es: 'La encuesta necesita al menos 2 alternativas.', en: 'The poll needs at least 2 options.' },
   prob_pocosElementos: { es: 'El ranking necesita al menos 3 elementos.', en: 'The ranking needs at least 3 items.' },
+  prob_sinMolde: { es: 'El molde necesita palabras, no solo huecos.', en: 'The frame needs words, not just blanks.' },
+  prob_sinConsignas: { es: 'Falta al menos una consigna.', en: 'Add at least one prompt.' },
 
   // Proyector · preparar
   creandoSala: { es: 'Creando la sala…', en: 'Creating the room…' },
@@ -113,6 +141,28 @@ export const TEXTOS = {
   ordenaron: { es: (n) => `${n} ${n === 1 ? 'ordenó' : 'ordenaron'}`, en: (n) => `${n} ranked` },
   votosN: { es: (n) => `${n} ${n === 1 ? 'voto' : 'votos'}`, en: (n) => `${n} ${n === 1 ? 'vote' : 'votes'}` },
   respondida: { es: 'Respondida', en: 'Answered' },
+  cursoEn_verde: { es: 'El curso está en verde.', en: 'The class is on green.' },
+  cursoEn_ambar: { es: 'El curso está en ámbar.', en: 'The class is on amber.' },
+  cursoEn_rojo: { es: 'El curso está en rojo.', en: 'The class is on red.' },
+  cursoRepartido: { es: 'El curso está repartido.', en: 'The class is split.' },
+  muroTitulo: { es: 'Lo que este curso pudo hoy', en: 'What this class managed today' },
+  logrosN: { es: (n) => `${n} ${n === 1 ? 'logro' : 'logros'} en esta clase`, en: (n) => `${n} ${n === 1 ? 'win' : 'wins'} in this lesson` },
+  vacioMuro: { es: 'Los logros que apruebes van a aparecer aquí.', en: 'The wins you approve will appear here.' },
+  escribelas: { es: (n) => (n === 1 ? 'Escríbela en tu cuaderno' : `Escribe las ${n} en tu cuaderno`), en: (n) => (n === 1 ? 'Write it in your notebook' : `Write the ${n} in your notebook`) },
+  cuantasCrees: { es: (n) => `${n === 1 ? 'De 1' : `De las ${n}`}, ¿cuántas crees que tienes bien?`, en: (n) => `Of the ${n}, how many do you think are right?` },
+  sinMirar: { es: 'Sin mirar las respuestas.', en: 'No peeking at the answers.' },
+  apostaronN: { es: (n) => `${n} ${n === 1 ? 'apostó' : 'apostaron'}`, en: (n) => `${n} placed a bet` },
+  cuantasTuviste: { es: (n) => `¿Cuántas de las ${n} tuviste bien?`, en: (n) => `How many of the ${n} did you get right?` },
+  calib_exacto: { es: 'Acertaron su apuesta', en: 'Got their bet right' },
+  calib_deMas: { es: 'Les sobró confianza', en: 'Were overconfident' },
+  calib_deMenos: { es: 'Sabían más de lo que creían', en: 'Knew more than they thought' },
+  enCualSobro: { es: '¿En cuál te sobró confianza?', en: 'Where were you overconfident?' },
+  compararonN: { es: (n, de) => `${n} de ${de} ya corrigieron`, en: (n, de) => `${n} of ${de} have checked` },
+  promediosApuesta: { es: (a, b) => `En promedio apostaron ${a} y tuvieron ${b}.`, en: (a, b) => `On average they bet ${a} and got ${b}.` },
+  aApostar: { es: 'Ya: a apostar', en: 'Time: place the bet' },
+  ahoraCorrijan: { es: 'Ahora corrijan', en: 'Now check' },
+  volverAEscribir: { es: '← Volver a escribir', en: '← Back to writing' },
+  volverAApostar: { es: '← Volver a apostar', en: '← Back to betting' },
 
   // Moderación
   corregir: { es: 'Corregir', en: 'Correct' },
@@ -135,6 +185,7 @@ export const TEXTOS = {
   sinModeracion: { es: 'Esta actividad no necesita moderación: no hay texto libre.', en: 'This activity needs no moderation: there is no free text.' },
   sinPreguntas: { es: 'Todavía no llegan preguntas.', en: 'No questions yet.' },
   marcarRespondida: { es: 'Respondida', en: 'Answered' },
+  aprobarTodas: { es: (n) => `Aprobar todas (${n})`, en: (n) => `Approve all (${n})` },
   desmarcarRespondida: { es: 'No respondida', en: 'Not answered' },
 
   // Pizarra
@@ -250,6 +301,17 @@ export const TEXTOS = {
   estadoEnPantalla: { es: 'En pantalla', en: 'On screen' },
   estadoNoSeMostro: { es: 'No se mostró', en: 'Not shown' },
   borrarPregunta: { es: 'Borrar', en: 'Delete' },
+  semaforoCelular: { es: 'Elige el que de verdad puedes hacer. Nadie ve tu nombre.', en: 'Choose the one you really can do. Nobody sees your name.' },
+  completaFrase: { es: 'Completa la frase', en: 'Complete the sentence' },
+  huecoN: { es: (n) => `Hueco ${n}`, en: (n) => `Blank ${n}` },
+  escribelasAhora: { es: 'Escríbelas en tu cuaderno. Cuando tu profe diga, apuestas.', en: 'Write them in your notebook. When your teacher says so, you place your bet.' },
+  apostaste: { es: (n) => `Apostaste ${n}`, en: (n) => `You bet ${n}` },
+  esperaCorregir: { es: 'Espera: tu profe dirá cuándo corregir.', en: 'Wait: your teacher will say when to check.' },
+  noApostaste: { es: 'Esta vez no alcanzaste a apostar. La próxima, apuesta antes de corregir.', en: 'You did not place a bet this time. Next time, bet before checking.' },
+  tuviste: { es: (n) => `Tuviste ${n}`, en: (n) => `You got ${n}` },
+  mi_exacto: { es: 'Te conoces bien: acertaste tu apuesta.', en: 'You know yourself well: your bet was right.' },
+  mi_deMas: { es: (d) => `Te sobró confianza en ${d}. ¿En cuál?`, en: (d) => `You were overconfident by ${d}. Which one?` },
+  mi_deMenos: { es: (d) => `Sabías más de lo que creías: ${d} más.`, en: (d) => `You knew more than you thought: ${d} more.` },
 
   // Cuenta y materiales
   iniciarSesion: { es: 'Iniciar sesión con Google', en: 'Sign in with Google' },
@@ -291,6 +353,11 @@ export const TEXTOS = {
   nombreParaGuardar: { es: '¿Con qué nombre lo guardo?', en: 'What name should I save it under?' },
   guardadoEn: { es: (n) => `Guardado en «${n}».`, en: (n) => `Saved to “${n}”.` },
   abrirSalaCon: { es: 'Abrir una sala', en: 'Open a room' },
+
+  // Lo que llega del Utility Belt
+  traidaDelBelt: { es: (tipo) => `Llegó del Utility Belt: «${tipo}». Cuando el curso haya entrado, muéstrala.`, en: (tipo) => `Arrived from the Utility Belt: “${tipo}”. Once the class has joined, show it.` },
+  mostrarAhora: { es: 'Mostrar ahora', en: 'Show it now' },
+  traidaInvalida: { es: 'No se pudo leer lo que llegó del Utility Belt. Vuelve a tocar «Hacer con celulares».', en: 'What came from the Utility Belt could not be read. Tap “Do it with phones” again.' },
 
   // Tema y fondo
   usarClaro: { es: 'Usar modo claro', en: 'Use light mode' },

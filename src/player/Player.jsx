@@ -17,8 +17,11 @@ import { useStore, useValue } from '../net/hooks.js'
 import { Button, Center, Logo } from '../ui.jsx'
 import { ProveedorIdioma, SelectorIdioma, idiomaDelNavegador, traducir, useT, valido } from '../i18n.jsx'
 import {
-  ALTERNATIVAS, LIMITES, correccionVigente, idAlAzar, limpiarAbierta, nombreValido, palabrasDe, preguntasDelCurso,
+  ALTERNATIVAS, LIMITES, conTexto, consignasDe, correccionVigente, idAlAzar, limpiarAbierta, limpiarLado, nombreValido, palabrasDe,
+  partirEnHuecos, preguntasDelCurso, tituloDe,
 } from '../live/logic.js'
+import { LAMPARA, NIVELES, faseApuesta, largoHueco, miCalibracion, moldeCompleto, textoDeMolde } from '../live/cierres.js'
+import { Consignas, TextoConHuecos } from '../live/Resultados.jsx'
 import { Cambios } from '../live/Cambios.jsx'
 import { BotonPdf, normalizar } from './Clase.jsx'
 import { rutaResumen, urlResumen } from '../live/resumen.js'
@@ -132,7 +135,7 @@ function EnSala({ store, pin, pid, onFuera }) {
         <main className="flex-1 flex flex-col p-4 max-w-md w-full mx-auto">
           {resumenId && <AvisoClase key={resumenId} store={store} id={resumenId} />}
           {actividad
-            ? <Responder key={actividad.id} store={store} base={base} pid={pid} actividad={actividad} abierta={Boolean(estado.abierta)} />
+            ? <Responder key={actividad.id} store={store} base={base} pid={pid} actividad={actividad} abierta={Boolean(estado.abierta)} fase={faseApuesta(estado)} />
             : <Espera />}
         </main>
       </div>
@@ -145,8 +148,9 @@ function Espera() {
   return <Center><p className="text-2xl font-bold text-slate-800">{t('estasDentro')}</p><p className="mt-2">{t('miraPantalla')}</p></Center>
 }
 
-function Responder({ store, base, pid, actividad, abierta }) {
+function Responder({ store, base, pid, actividad, abierta, fase }) {
   if (actividad.tipo === 'preguntas') return <PreguntarYVotar store={store} base={base} pid={pid} actividad={actividad} abierta={abierta} />
+  if (actividad.tipo === 'apuesta') return <ResponderApuesta store={store} base={base} pid={pid} actividad={actividad} abierta={abierta} fase={fase} />
   return <ResponderUna store={store} base={base} pid={pid} actividad={actividad} abierta={abierta} />
 }
 
@@ -154,8 +158,9 @@ function ResponderUna({ store, base, pid, actividad, abierta }) {
   const t = useT()
   const aid = actividad.id
   const mia = useValue(store, `${base}/respuestas/${aid}/${pid}`)
-  const decision = useValue(store, actividad.tipo === 'abierta' ? `${base}/moderacion/${aid}/abiertas/${pid}` : null)
-  const correccion = useValue(store, actividad.tipo === 'abierta' ? `${base}/moderacion/${aid}/correcciones/${pid}` : null)
+  const moderada = conTexto(actividad.tipo)
+  const decision = useValue(store, moderada ? `${base}/moderacion/${aid}/abiertas/${pid}` : null)
+  const correccion = useValue(store, moderada ? `${base}/moderacion/${aid}/correcciones/${pid}` : null)
   const [editando, setEditando] = useState(false)
 
   if (mia === undefined) return <Center>{t('cargando')}</Center>
@@ -167,7 +172,7 @@ function ResponderUna({ store, base, pid, actividad, abierta }) {
 
   return (
     <div className="flex-1 flex flex-col gap-4">
-      <h1 className="text-2xl font-black text-slate-900 leading-snug">{actividad.pregunta}</h1>
+      <h1 className="text-2xl font-black text-slate-900 leading-snug"><TextoConHuecos texto={tituloDe(actividad, t)} /></h1>
 
       {yaRespondio ? (
         <Enviada actividad={actividad} mia={mia} decision={decision} correccion={correccion} abierta={abierta} onCambiar={() => setEditando(true)} />
@@ -177,6 +182,9 @@ function ResponderUna({ store, base, pid, actividad, abierta }) {
         : actividad.tipo === 'encuesta' ? <FormEncuesta actividad={actividad} inicial={mia?.opcion} onEnviar={enviar} />
         : actividad.tipo === 'escala' ? <FormEscala inicial={mia?.valor} onEnviar={enviar} />
         : actividad.tipo === 'ranking' ? <FormRanking actividad={actividad} inicial={mia?.orden} onEnviar={enviar} />
+        : actividad.tipo === 'semaforo' ? <FormSemaforo inicial={mia?.opcion} onEnviar={enviar} />
+        : actividad.tipo === 'duda' || actividad.tipo === 'muro' ? <FormMolde tipo={actividad.tipo} molde={actividad.pregunta} inicial={mia?.huecos} onEnviar={enviar} />
+        : actividad.tipo === 'antesahora' ? <FormAntesAhora actividad={actividad} inicial={mia} onEnviar={enviar} />
         : <FormAbierta inicial={mia?.texto} onEnviar={enviar} />}
     </div>
   )
@@ -189,8 +197,16 @@ function Enviada({ actividad, mia, decision, correccion, abierta, onCambiar }) {
     : actividad.tipo === 'encuesta' ? `${ALTERNATIVAS[mia.opcion]?.letra}. ${actividad.alternativas?.[mia.opcion] ?? ''}`
     : actividad.tipo === 'escala' ? `${mia.valor} · ${t('escala')[mia.valor - 1] ?? ''}`
     : actividad.tipo === 'ranking' ? (mia.orden || []).map((i, p) => `${p + 1}. ${actividad.alternativas?.[i] ?? ''}`).join('  ')
+    : actividad.tipo === 'semaforo' ? (
+      <span className="flex items-center gap-2">
+        <span aria-hidden="true" className="w-5 h-5 shrink-0 rounded-full" style={{ background: LAMPARA[NIVELES[mia.opcion]?.id] }} />
+        {NIVELES[mia.opcion]?.texto}
+      </span>
+    )
+    : actividad.tipo === 'antesahora' ? <><span className="font-normal text-slate-500">{t('porque')} </span>{mia.texto}</>
     : mia.texto
-  const corregida = actividad.tipo === 'abierta' ? correccionVigente(correccion, limpiarAbierta(mia.texto)) : null
+  const moderada = conTexto(actividad.tipo)
+  const corregida = moderada ? correccionVigente(correccion, limpiarAbierta(mia.texto)) : null
   return (
     <div className="flex flex-col gap-3">
       <div className="rounded-2xl bg-teal-700 text-white p-5 text-center">
@@ -199,13 +215,20 @@ function Enviada({ actividad, mia, decision, correccion, abierta, onCambiar }) {
       </div>
       <div className="rounded-2xl bg-white border border-slate-200 p-4">
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('tuRespuesta')}</p>
+        {(mia.antes || mia.ahora) && (
+          <p className="mt-1 text-sm">
+            {mia.antes && <span className="text-slate-500 line-through">{mia.antes}</span>}
+            {mia.antes && mia.ahora && <span className="text-slate-400"> → </span>}
+            {mia.ahora && <span className="font-semibold text-slate-800">{mia.ahora}</span>}
+          </p>
+        )}
         {/* LA CORRECCIÓN DEL DOCENTE, solo aquí: es privada. El proyector muestra
             la versión limpia; lo que cambió lo ve únicamente quien la escribió. */}
         {corregida
           ? <Cambios antes={limpiarAbierta(mia.texto)} despues={corregida} className="mt-1 text-lg font-semibold text-slate-900" />
-          : <p className="mt-1 text-lg font-semibold text-slate-900 break-words">{lo}</p>}
+          : <div className="mt-1 text-lg font-semibold text-slate-900 break-words">{lo}</div>}
         {corregida && <p className="mt-2 text-sm font-bold text-teal-800">✎ {t('profeCorrigio')}</p>}
-        {actividad.tipo === 'abierta' && (
+        {moderada && (
           <p className="mt-2 text-sm text-slate-500">{decision === true ? t('enPantallaSinNombre') : t('profeRevisa')}</p>
         )}
       </div>
@@ -279,6 +302,202 @@ function FormAbierta({ inicial, onEnviar }) {
       <p className="text-right text-xs text-slate-400 tabular-nums">{texto.length}/{LIMITES.abierta}</p>
       <Button disabled={!limpio} className="text-lg">{t('enviar')}</Button>
     </form>
+  )
+}
+
+/* ── Cierres ─────────────────────────────────────────────────────────────── */
+
+/* SEMÁFORO: los tres niveles con su lámpara. Un toque y se envía, como la
+   encuesta; mientras siga abierta se puede cambiar. */
+function FormSemaforo({ inicial, onEnviar }) {
+  const t = useT()
+  return (
+    <div className="flex flex-col gap-2.5">
+      <p className="text-sm text-slate-500">{t('semaforoCelular')}</p>
+      {NIVELES.map((n, i) => (
+        <button key={n.id} onClick={() => onEnviar({ opcion: i })}
+          className={`flex items-center gap-3 rounded-2xl border-2 p-3 text-left active:scale-[.98] transition ${inicial === i ? 'border-teal-600 bg-teal-50' : 'border-slate-200 bg-white'}`}>
+          <span aria-hidden="true" className="w-10 h-10 shrink-0 rounded-full" style={{ background: LAMPARA[n.id] }} />
+          <span className="text-lg font-semibold text-slate-900">{n.texto}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/* LA DUDA Y EL MURO: el molde del docente, con un campo por hueco. Un molde a
+   medio hacer se completa; una pregunta en blanco, no. Arriba se ve la frase
+   como va quedando. Sin huecos, el molde es una pregunta y se responde libre. */
+function FormMolde({ tipo, molde, inicial, onEnviar }) {
+  const t = useT()
+  const trozos = partirEnHuecos(molde)
+  const n = trozos.filter(x => x.tipo === 'hueco').length
+  const [huecos, setHuecos] = useState(() => {
+    const previos = Array.isArray(inicial) ? inicial : Object.values(inicial || {})
+    return Array.from({ length: Math.max(1, n) }, (_, i) => previos[i] || '')
+  })
+  const max = largoHueco(molde)
+  const listo = moldeCompleto(molde, huecos)
+  const enviar = (e) => {
+    e.preventDefault()
+    if (listo) onEnviar({ huecos: huecos.map(h => h.replace(/\s+/g, ' ').trim()), texto: textoDeMolde(tipo, molde, huecos) })
+  }
+  const cambiar = (i, v) => setHuecos(hs => hs.map((x, j) => (j === i ? v : x)))
+  const campo = 'rounded-xl border-2 border-slate-200 px-4 py-3 text-lg focus:border-teal-600 outline-none'
+  let k = 0
+  return (
+    <form className="flex flex-col gap-2" onSubmit={enviar}>
+      {n > 0 && (
+        <p className="rounded-2xl bg-white border border-slate-200 p-4 text-lg font-semibold text-slate-900 leading-relaxed">
+          {trozos.map((x, i) => {
+            if (x.tipo === 'texto') return <span key={i}>{x.valor}</span>
+            const lleno = huecos[k++]?.trim()
+            return lleno
+              ? <span key={i} className="text-teal-800 underline decoration-2 underline-offset-4">{lleno}</span>
+              : <span key={i} className="text-slate-400">{x.valor}</span>
+          })}
+        </p>
+      )}
+      {n > 0 ? huecos.map((h, i) => (
+        <input key={i} value={h} maxLength={max} aria-label={n > 1 ? t('huecoN', i + 1) : t('completaFrase')}
+          placeholder={n > 1 ? t('huecoN', i + 1) : t('completaFrase')}
+          onChange={(e) => cambiar(i, e.target.value)} className={campo} />
+      )) : (
+        <textarea value={huecos[0]} maxLength={LIMITES.abierta} rows={4} placeholder={t('escribeRespuesta')} aria-label={t('tuRespuesta')}
+          onChange={(e) => cambiar(0, e.target.value)} className={`${campo} resize-none`} />
+      )}
+      <Button disabled={!listo} className="text-lg mt-1">{t('enviar')}</Button>
+    </form>
+  )
+}
+
+/* ANTES / AHORA: los lados que escribió el docente se ven fijos (el de antes,
+   tachado); los que dejó en blanco los escribe cada uno. El «porque» siempre:
+   es la mitad que vale. */
+function FormAntesAhora({ actividad, inicial, onEnviar }) {
+  const t = useT()
+  const [antes, setAntes] = useState(inicial?.antes || '')
+  const [ahora, setAhora] = useState(inicial?.ahora || '')
+  const [porque, setPorque] = useState(inicial?.texto || '')
+  const listo = (actividad.antes || limpiarLado(antes)) && (actividad.ahora || limpiarLado(ahora)) && limpiarAbierta(porque)
+  const enviar = (e) => {
+    e.preventDefault()
+    if (!listo) return
+    onEnviar({
+      ...(actividad.antes ? {} : { antes: limpiarLado(antes) }),
+      ...(actividad.ahora ? {} : { ahora: limpiarLado(ahora) }),
+      texto: limpiarAbierta(porque),
+    })
+  }
+  const campo = 'w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-lg focus:border-teal-600 outline-none'
+  const rotulo = 'text-xs font-bold uppercase tracking-wider text-slate-500'
+  return (
+    <form className="flex flex-col gap-3" onSubmit={enviar}>
+      <label className="flex flex-col gap-1">
+        <span className={rotulo}>{t('antesPensaba')}</span>
+        {actividad.antes
+          ? <span className="text-lg font-semibold text-slate-600 line-through decoration-2">{actividad.antes}</span>
+          : <input value={antes} maxLength={LIMITES.lado} onChange={(e) => setAntes(e.target.value)} className={campo} />}
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className={rotulo}>{t('ahoraPienso')}</span>
+        {actividad.ahora
+          ? <span className="text-lg font-semibold text-slate-900">{actividad.ahora}</span>
+          : <input value={ahora} maxLength={LIMITES.lado} onChange={(e) => setAhora(e.target.value)} className={campo} />}
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className={rotulo}>{t('porque')}</span>
+        <textarea value={porque} maxLength={LIMITES.abierta} rows={3} onChange={(e) => setPorque(e.target.value)} className={`${campo} resize-none`} />
+      </label>
+      <Button disabled={!listo} className="text-lg">{t('enviar')}</Button>
+    </form>
+  )
+}
+
+/* APUESTA: lo que ve el celular depende de la fase que mueve el docente.
+     ESCRIBIR  las consignas, para escribirlas en el cuaderno
+     APOSTAR   cuántas crees tener bien, SIN las consignas a la vista
+     COMPARAR  cuántas tuviste, y la distancia con lo que apostaste
+   La apuesta no se cambia después de apostar: si se pudiera, dejaría de ser
+   una apuesta. Lo que se ve al final es solo de cada uno. */
+function ResponderApuesta({ store, base, pid, actividad, abierta, fase }) {
+  const t = useT()
+  const ruta = `${base}/respuestas/${actividad.id}/${pid}`
+  const mia = useValue(store, ruta)
+  const [cambiando, setCambiando] = useState(false)
+  if (mia === undefined) return <Center>{t('cargando')}</Center>
+  const consignas = consignasDe(actividad)
+  const n = consignas.length
+  const apuesta = Number.isInteger(mia?.apuesta) ? mia.apuesta : null
+  const tuve = Number.isInteger(mia?.tuve) ? mia.tuve : null
+  const guardar = async (v) => { await store.set(ruta, { ...v, at: store.stamp() }); setCambiando(false) }
+  const cerradas = <p className="rounded-2xl bg-slate-100 p-4 text-center font-semibold text-slate-600">{t('respuestasCerradas')}</p>
+
+  let cuerpo
+  if (fase === 'escribir') {
+    cuerpo = (
+      <>
+        <p className="text-slate-600">{t('escribelasAhora')}</p>
+        <Consignas consignas={consignas} chico />
+      </>
+    )
+  } else if (fase === 'apostar') {
+    cuerpo = !abierta ? cerradas : (
+      <>
+        <p className="text-xl font-bold text-slate-900">{t('cuantasCrees', n)}</p>
+        <Numeros n={n} elegido={apuesta} onElegir={(k) => guardar({ apuesta: k })} />
+        {apuesta != null && (
+          <div className="rounded-2xl bg-teal-700 text-white p-4 text-center">
+            <p className="text-2xl font-black">{t('apostaste', apuesta)}</p>
+            <p className="mt-1 text-teal-50">{t('esperaCorregir')}</p>
+          </div>
+        )}
+      </>
+    )
+  } else if (apuesta == null) {
+    cuerpo = <p className="rounded-2xl bg-slate-100 p-4 text-center font-semibold text-slate-600">{t('noApostaste')}</p>
+  } else if (tuve == null || cambiando) {
+    cuerpo = !abierta ? cerradas : (
+      <>
+        <Consignas consignas={consignas} chico />
+        <p className="text-xl font-bold text-slate-900">{t('cuantasTuviste', n)}</p>
+        <Numeros n={n} elegido={tuve} onElegir={(k) => guardar({ apuesta, tuve: k })} />
+      </>
+    )
+  } else {
+    const lectura = miCalibracion(apuesta, tuve)
+    cuerpo = (
+      <>
+        <div className={`rounded-2xl p-5 text-center ${lectura === 'deMas' ? 'bg-amber-50 border-2 border-amber-200' : 'bg-teal-700 text-white'}`}>
+          <p className={`text-2xl font-black ${lectura === 'deMas' ? 'text-amber-900' : ''}`}>{t('apostaste', apuesta)} · {t('tuviste', tuve)}</p>
+          <p className={`mt-2 text-lg font-semibold ${lectura === 'deMas' ? 'text-amber-900' : 'text-teal-50'}`}>
+            {lectura === 'exacto' ? t('mi_exacto') : t(`mi_${lectura}`, Math.abs(apuesta - tuve))}
+          </p>
+        </div>
+        {abierta && <Button variant="ghost" onClick={() => setCambiando(true)}>{t('cambiarRespuesta')}</Button>}
+      </>
+    )
+  }
+
+  return (
+    <div className="flex-1 flex flex-col gap-4">
+      <h1 className="text-2xl font-black text-slate-900 leading-snug">{tituloDe(actividad, t)}</h1>
+      {cuerpo}
+    </div>
+  )
+}
+
+/* Los números de 0 a n, grandes: se tocan con el pulgar. */
+function Numeros({ n, elegido, onElegir }) {
+  return (
+    <div className="grid grid-cols-5 gap-2">
+      {Array.from({ length: n + 1 }, (_, k) => (
+        <button key={k} onClick={() => onElegir(k)} aria-pressed={elegido === k}
+          className={`rounded-2xl border-2 py-4 text-3xl font-black tabular-nums active:scale-[.97] transition ${elegido === k ? 'border-teal-600 bg-teal-50 text-teal-800' : 'border-slate-200 bg-white text-slate-900'}`}>
+          {k}
+        </button>
+      ))}
+    </div>
   )
 }
 
