@@ -119,7 +119,19 @@ function Tablero({ store, pin }) {
     try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* sin captura */ }
     empezar(punto(e), e.pointerId, botonDeBorrar(e))
   }
+  /* EL CÍRCULO DEL BORRADOR: con el botón del S Pen se borra pasando el lápiz
+     casi encima, sin tocar (Samsung no deja pasar el toque con el botón
+     apretado), así que hay que ver dónde va a borrar. Se dibuja del tamaño
+     real del borrador, solo en la tablet. También con el Borrador de la
+     barra, mientras el lápiz se acerca sin tocar. */
+  const [circulo, setCirculo] = useState(null) // [x, y] en unidades del papel
   const mover = (e) => {
+    moverTrazo(e)
+    const enElAire = e.pointerType === 'pen' && e.pressure === 0
+    const borra = trazo.current?.datos.b || (enElAire && ((e.buttons ?? 0) & 1) !== 0) || (borrador && e.pointerType === 'pen')
+    setCirculo(borra ? punto(e) : null)
+  }
+  const moverTrazo = (e) => {
     const tr = trazo.current
     /* El S Pen de la Tab S9 en Edge (y quizá en otros) no avisa el botón como
        botón: con el botón apretado el lápiz se mueve «con clic» pero sin
@@ -159,6 +171,7 @@ function Tablero({ store, pin }) {
     if (!tr || e.pointerId !== tr.pointerId) return
     terminar(tr)
     setEnCurso(comoSeVe(tr, tr.puntos))
+    if (tr.enElAire) setCirculo(null)
     /* El trazo queda dibujado arriba hasta que vuelve de la base y se suma a
        los de abajo: así no parpadea. */
   }
@@ -218,8 +231,22 @@ function Tablero({ store, pin }) {
 
       <Lienzo trazos={trazos} enCurso={enCurso} fondo={vista.fondo} papelRef={papel} className="flex-1 p-3"
         onPointerDown={bajar} onPointerMove={mover} onPointerUp={subir} onPointerCancel={subir}
-        onPointerLeave={(e) => { if (trazo.current?.enElAire) subir(e) }}
-        onContextMenu={(e) => e.preventDefault()} />
+        onPointerLeave={(e) => { setCirculo(null); if (trazo.current?.enElAire) subir(e) }}
+        onContextMenu={(e) => e.preventDefault()}>
+        {circulo && (
+          <div aria-hidden="true" className="absolute pointer-events-none rounded-full"
+            style={{
+              left: `${(circulo[0] / ANCHO) * 100}%`,
+              top: `${(circulo[1] / ALTO) * 100}%`,
+              width: `${(GROSOR_BORRADOR / ANCHO) * 100}%`,
+              aspectRatio: '1',
+              transform: 'translate(-50%, -50%)',
+              border: '2px solid #475569',
+              boxShadow: '0 0 0 1px #ffffff',
+              backgroundColor: 'rgba(148, 163, 184, 0.15)',
+            }} />
+        )}
+      </Lienzo>
     </div>
   )
 }

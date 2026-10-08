@@ -85,7 +85,7 @@ function preparar(canvas, w, h) {
  * `trazos` = los terminados (trazosEnOrden), `enCurso` = el que se escribe o
  * null. `papelRef` y los `on…` son para la tablet, que escribe encima.
  */
-export function Lienzo({ trazos, enCurso, fondo = 'blanco', papelRef, className = '', ...eventos }) {
+export function Lienzo({ trazos, enCurso, fondo = 'blanco', papelRef, className = '', children, ...eventos }) {
   const marco = useRef(null)
   const abajo = useRef(null)
   const arriba = useRef(null)
@@ -134,6 +134,7 @@ export function Lienzo({ trazos, enCurso, fondo = 'blanco', papelRef, className 
         style={{ width: tam.w, height: tam.h, touchAction: 'none', ...fondoCss(fondo, k) }}>
         <canvas ref={abajo} className="absolute inset-0" style={{ width: tam.w, height: tam.h }} />
         <canvas ref={arriba} className="absolute inset-0" style={{ width: tam.w, height: tam.h }} />
+        {children}
       </div>
     </div>
   )
