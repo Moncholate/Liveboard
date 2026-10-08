@@ -164,6 +164,8 @@ export const TEXTOS = {
   paginaSiguiente: { es: 'Página siguiente', en: 'Next page' },
   proyectarPizarra: { es: 'Proyectar', en: 'Project' },
   proyectando: { es: 'Proyectando', en: 'Projecting' },
+  arriba: { es: 'Arriba', en: 'Top' },
+  volverArriba: { es: 'Volver al principio de la página', en: 'Back to the top of the page' },
 
   // Celular del docente
   docente: { es: 'Docente', en: 'Teacher' },

@@ -22,7 +22,7 @@ import { ProveedorIdioma, traducir, useT, valido } from '../i18n.jsx'
 import { raiz } from '../live/sala.js'
 import {
   ALTO, ANCHO, COLORES, FONDOS_PIZARRA, GROSORES, GROSOR_BORRADOR, MAX_PAGINAS,
-  botonDeBorrar, botonEnElAire, codificar, idDeTrazo, lejos, rutaPizarra, trazosEnOrden, ultimoTrazo, vistaValida,
+  botonDeBorrar, botonEnElAire, codificar, idDeTrazo, lejos, rutaPizarra, trazosEnOrden, ultimoTrazo, vistaValida, yValida,
 } from '../live/pizarra.js'
 import { Lienzo } from '../live/Lienzo.jsx'
 import { useTema } from '../tema.jsx'
@@ -60,11 +60,74 @@ function Tablero({ store, pin }) {
   const conLapiz = useRef(false)
   const cuadro = useRef(0)
 
-  const cambiarVista = (cambios) => store.set(`${ruta}/vista`, { ...vista, ...cambios })
+  /* CUÁNTO SE BAJÓ EN EL CUADERNO. La tablet lo lleva en local para que bajar
+     se sienta al tiro, y lo manda a la base cada 100 ms para que el proyector
+     la siga. Si lo cambia otro (el proyector con la rueda, o al cambiar de
+     página), se toma el de la base, salvo mientras se baja con los dedos. */
+  const [y, setYLocal] = useState(vista.y)
+  const yRef = useRef(vista.y)
+  const ultimoEnvioY = useRef(0)
+  const envioYPendiente = useRef(0)
+  const setY = (nuevo, { enviar = true } = {}) => {
+    const v = yValida(nuevo)
+    yRef.current = v
+    setYLocal(v)
+    if (!enviar) return
+    clearTimeout(envioYPendiente.current)
+    const mandar = () => { ultimoEnvioY.current = Date.now(); store.update(`${ruta}/vista`, { y: yRef.current }) }
+    if (Date.now() - ultimoEnvioY.current > 100) mandar()
+    else envioYPendiente.current = setTimeout(mandar, 100)
+  }
+  const dedos = useRef(new Map()) // pointerId → { y0, y } de cada dedo apoyado
+  const desplazando = useRef(null) // { yInicio, mediaInicio } mientras se baja con dos dedos
+  useEffect(() => {
+    if (!desplazando.current) setY(vista.y, { enviar: false })
+  }, [vista.y, vista.pagina])
+
+  const cambiarVista = (cambios) => store.set(`${ruta}/vista`, { ...vista, y: yRef.current, ...cambios })
 
   const punto = (e) => {
     const r = papel.current.getBoundingClientRect()
-    return [((e.clientX - r.left) / r.width) * ANCHO, ((e.clientY - r.top) / r.height) * ALTO]
+    return [((e.clientX - r.left) / r.width) * ANCHO, ((e.clientY - r.top) / r.height) * ALTO + yRef.current]
+  }
+
+  /* BAJAR CON DOS DEDOS. Se mueve solo si los DOS dedos se desplazan en la
+     misma dirección: una palma apoyada y quieta, más un dedo, no mueve nada. */
+  const UMBRAL_PX = 10
+  const dedoAbajo = (e) => {
+    dedos.current.set(e.pointerId, { y0: e.clientY, y: e.clientY })
+    /* Si el primer dedo estaba dibujando (antes de usar el lápiz), ese trazo
+       se descarta: el segundo dedo dice que era para bajar. */
+    const tr = trazo.current
+    if (dedos.current.size >= 2 && tr?.tocando) {
+      trazo.current = null
+      store.remove(`${ruta}/enCurso`)
+      setEnCurso(null)
+    }
+  }
+  const dedoMovido = (e) => {
+    const d = dedos.current.get(e.pointerId)
+    if (!d) return false
+    d.y = e.clientY
+    if (dedos.current.size < 2) return false
+    const lista = [...dedos.current.values()].slice(0, 2)
+    const media = (lista[0].y + lista[1].y) / 2
+    if (!desplazando.current) {
+      const [a, b] = lista.map(x => x.y - x.y0)
+      const juntos = Math.abs(a) > UMBRAL_PX && Math.abs(b) > UMBRAL_PX && Math.sign(a) === Math.sign(b)
+      if (!juntos) return true
+      desplazando.current = { yInicio: yRef.current, mediaInicio: media }
+    }
+    const alto = papel.current.getBoundingClientRect().height
+    setY(desplazando.current.yInicio - ((media - desplazando.current.mediaInicio) / alto) * ALTO)
+    return true
+  }
+  const dedoArriba = (e) => {
+    if (!dedos.current.delete(e.pointerId)) return
+    if (dedos.current.size < 2 && desplazando.current) {
+      desplazando.current = null
+      setY(yRef.current)
+    }
   }
   /* Cómo se ve un trazo según sus datos guardados ({ c, g, b? }). */
   const comoSeVe = (tr, puntos) => ({ color: tr.datos.c, grosor: tr.datos.g, borrador: Boolean(tr.datos.b), puntos })
@@ -111,13 +174,17 @@ function Tablero({ store, pin }) {
   }
 
   const bajar = (e) => {
+    if (e.pointerType === 'touch') {
+      dedoAbajo(e)
+      if (conLapiz.current || dedos.current.size > 1) return
+    }
     if (e.pointerType === 'pen') conLapiz.current = true
-    else if (e.pointerType === 'touch' && conLapiz.current) return
     if (trazo.current) return
     /* Capturar el puntero hace que el trazo siga aunque el lápiz salga del
        papel. Si el navegador no lo permite, se escribe igual. */
     try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* sin captura */ }
     empezar(punto(e), e.pointerId, botonDeBorrar(e))
+    if (e.pointerType === 'touch') trazo.current.tocando = true
   }
   /* EL CÍRCULO DEL BORRADOR: con el botón del S Pen se borra pasando el lápiz
      casi encima, sin tocar (Samsung no deja pasar el toque con el botón
@@ -126,7 +193,9 @@ function Tablero({ store, pin }) {
      barra, mientras el lápiz se acerca sin tocar. */
   const [circulo, setCirculo] = useState(null) // [x, y] en unidades del papel
   const mover = (e) => {
+    if (e.pointerType === 'touch' && dedoMovido(e)) return
     moverTrazo(e)
+    if (e.pointerType === 'touch') return // el círculo sigue al lápiz, no a la palma
     const enElAire = e.pointerType === 'pen' && e.pressure === 0
     const borra = trazo.current?.datos.b || (enElAire && ((e.buttons ?? 0) & 1) !== 0) || (borrador && e.pointerType === 'pen')
     setCirculo(borra ? punto(e) : null)
@@ -166,6 +235,10 @@ function Tablero({ store, pin }) {
     }
     pintar()
   }
+  const levantar = (e) => {
+    if (e.pointerType === 'touch') dedoArriba(e)
+    subir(e)
+  }
   const subir = (e) => {
     const tr = trazo.current
     if (!tr || e.pointerId !== tr.pointerId) return
@@ -182,10 +255,14 @@ function Tablero({ store, pin }) {
     if (id) store.remove(`${ruta}/paginas/${vista.pagina}/trazos/${id}`)
   }
   const limpiar = () => {
-    if (trazos.length && confirm(t('confirmarLimpiar'))) store.remove(`${ruta}/paginas/${vista.pagina}`)
+    if (!trazos.length || !confirm(t('confirmarLimpiar'))) return
+    store.remove(`${ruta}/paginas/${vista.pagina}`)
+    setY(0)
   }
-  const irA = (pagina) => cambiarVista({ pagina })
-  const nueva = () => cambiarVista({ paginas: vista.paginas + 1, pagina: vista.paginas })
+  /* Cada página se abre desde arriba. */
+  const irA = (pagina) => { setY(0, { enviar: false }); cambiarVista({ pagina, y: 0 }) }
+  const nueva = () => { setY(0, { enviar: false }); cambiarVista({ paginas: vista.paginas + 1, pagina: vista.paginas, y: 0 }) }
+  const rueda = (e) => setY(yRef.current + (e.deltaY / papel.current.getBoundingClientRect().height) * ALTO)
   const proyectar = () => store.update(`${raiz(pin)}/estado`, { pizarra: !proyectando })
 
   const boton = 'h-11 min-w-11 px-3 rounded-xl border border-slate-300 bg-white font-bold text-slate-700 disabled:opacity-40'
@@ -229,15 +306,25 @@ function Tablero({ store, pin }) {
         </button>
       </header>
 
-      <Lienzo trazos={trazos} enCurso={enCurso} fondo={vista.fondo} papelRef={papel} className="flex-1 p-3"
-        onPointerDown={bajar} onPointerMove={mover} onPointerUp={subir} onPointerCancel={subir}
+      <Lienzo trazos={trazos} enCurso={enCurso} fondo={vista.fondo} y={y} papelRef={papel} className="flex-1 p-3"
+        onPointerDown={bajar} onPointerMove={mover} onPointerUp={levantar} onPointerCancel={levantar} onWheel={rueda}
         onPointerLeave={(e) => { setCirculo(null); if (trazo.current?.enElAire) subir(e) }}
         onContextMenu={(e) => e.preventDefault()}>
+        {/* Flota sobre el papel y no en la barra: si la barra cambia de largo
+            se parte en dos líneas y el papel se achica a mitad de clase. */}
+        {y > 0 && (
+          <button onClick={() => setY(0)} onPointerDown={(e) => e.stopPropagation()} title={t('volverArriba')}
+            className="absolute bottom-3 right-5 h-11 px-3 rounded-xl border font-bold shadow"
+            style={{ backgroundColor: 'rgba(255, 255, 255, 0.92)', color: '#334155', borderColor: '#cbd5e1' }}>
+            {/* Colores en línea: va sobre el papel, que es blanco también en oscuro. */}
+            ⤒ {t('arriba')}
+          </button>
+        )}
         {circulo && (
           <div aria-hidden="true" className="absolute pointer-events-none rounded-full"
             style={{
               left: `${(circulo[0] / ANCHO) * 100}%`,
-              top: `${(circulo[1] / ALTO) * 100}%`,
+              top: `${((circulo[1] - y) / ALTO) * 100}%`,
               width: `${(GROSOR_BORRADOR / ANCHO) * 100}%`,
               aspectRatio: '1',
               transform: 'translate(-50%, -50%)',

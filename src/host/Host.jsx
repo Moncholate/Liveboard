@@ -34,7 +34,7 @@ import { BotonTema, useTema } from '../tema.jsx'
 import { fondoPorId, fondoValido } from '../live/fondos.js'
 import { SelectorFondo } from '../live/SelectorFondo.jsx'
 import { Lienzo } from '../live/Lienzo.jsx'
-import { enCursoVisible, rutaPizarra, trazosEnOrden, vistaValida } from '../live/pizarra.js'
+import { ALTO, enCursoVisible, rutaPizarra, trazosEnOrden, vistaValida, yValida } from '../live/pizarra.js'
 
 const PIN_KEY = 'liveboard-host-pin'
 const ULTIMAS_KEY = 'liveboard-ultimas'
@@ -539,11 +539,18 @@ function PizarraProyector({ store, pin, acciones }) {
   const enCursoRaw = useValue(store, `${ruta}/enCurso`)
   const trazos = useMemo(() => trazosEnOrden(trazosRaw), [trazosRaw])
   const enCurso = useMemo(() => enCursoVisible(enCursoRaw, vista.pagina, trazosRaw), [enCursoRaw, vista.pagina, trazosRaw])
-  const irA = (pagina) => store.set(`${ruta}/vista`, { ...vista, pagina })
+  const irA = (pagina) => store.set(`${ruta}/vista`, { ...vista, pagina, y: 0 })
+  /* El proyector sigue a la tablet en el cuaderno; con la rueda del mouse
+     también se baja desde aquí (y la tablet lo sigue a él). */
+  const papel = useRef(null)
+  const rueda = (e) => {
+    const alto = papel.current?.getBoundingClientRect().height || 1
+    store.update(`${ruta}/vista`, { y: yValida(vista.y + (e.deltaY / alto) * ALTO) })
+  }
 
   return (
     <main className="flex-1 flex flex-col min-h-0">
-      <Lienzo trazos={trazos} enCurso={enCurso} fondo={vista.fondo} className="flex-1 p-4" />
+      <Lienzo trazos={trazos} enCurso={enCurso} fondo={vista.fondo} y={vista.y} papelRef={papel} onWheel={rueda} className="flex-1 p-4" />
       <footer className="flex items-center gap-2 px-6 py-3 bg-white border-t border-slate-200">
         <Button variant="ghost" onClick={() => acciones.pizarra(false)}>{t('volverDePizarra')}</Button>
         <span className="flex-1" />

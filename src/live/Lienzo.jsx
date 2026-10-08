@@ -14,7 +14,7 @@
    no con las clases que index.css oscurece.
    ========================================================================== */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ALTO, ANCHO } from './pizarra.js'
+import { ALTO, ANCHO, aLaVista, fondoEscrito } from './pizarra.js'
 
 const PAPEL = '#ffffff'
 const RAYA = 'rgba(100, 116, 139, 0.22)'
@@ -48,13 +48,16 @@ export function trazar(ctx, t, k) {
   ctx.stroke()
 }
 
-function fondoCss(fondo, k) {
+/* El papel se corre con el cuaderno: las rayas suben cuando se baja. */
+function fondoCss(fondo, k, y) {
   const paso = PASO * k
+  const corrido = -((y * k) % paso)
   if (fondo === 'cuadros') {
     return {
       backgroundColor: PAPEL,
       backgroundImage: `linear-gradient(${RAYA} 1px, transparent 1px), linear-gradient(90deg, ${RAYA} 1px, transparent 1px)`,
       backgroundSize: `${paso}px ${paso}px`,
+      backgroundPosition: `0 ${corrido}px`,
     }
   }
   if (fondo === 'lineas') {
@@ -62,14 +65,15 @@ function fondoCss(fondo, k) {
       backgroundColor: PAPEL,
       backgroundImage: `linear-gradient(${RAYA} 1px, transparent 1px)`,
       backgroundSize: `100% ${paso}px`,
-      backgroundPosition: `0 ${paso / 2}px`,
+      backgroundPosition: `0 ${paso / 2 + corrido}px`,
     }
   }
   return { backgroundColor: PAPEL }
 }
 
-/* Prepara un canvas para la densidad de la pantalla: nítido en la tablet. */
-function preparar(canvas, w, h) {
+/* Prepara un canvas para la densidad de la pantalla (nítido en la tablet) y
+   corrido a la parte del cuaderno que se ve. */
+function preparar(canvas, w, h, desplazado) {
   const dpr = window.devicePixelRatio || 1
   if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
     canvas.width = Math.round(w * dpr)
@@ -78,14 +82,16 @@ function preparar(canvas, w, h) {
   const ctx = canvas.getContext('2d')
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, w, h)
+  ctx.translate(0, -desplazado)
   return ctx
 }
 
 /**
  * `trazos` = los terminados (trazosEnOrden), `enCurso` = el que se escribe o
- * null. `papelRef` y los `on…` son para la tablet, que escribe encima.
+ * null. `y` = desde dónde se ve el cuaderno. `papelRef` y los `on…` son para
+ * la tablet, que escribe encima.
  */
-export function Lienzo({ trazos, enCurso, fondo = 'blanco', papelRef, className = '', children, ...eventos }) {
+export function Lienzo({ trazos, enCurso, fondo = 'blanco', y = 0, papelRef, className = '', children, ...eventos }) {
   const marco = useRef(null)
   const abajo = useRef(null)
   const arriba = useRef(null)
@@ -116,24 +122,38 @@ export function Lienzo({ trazos, enCurso, fondo = 'blanco', papelRef, className 
 
   useEffect(() => {
     if (!tam.w || !abajo.current) return
-    const ctx = preparar(abajo.current, tam.w, tam.h)
-    for (const t of trazos) trazar(ctx, t, k)
+    const ctx = preparar(abajo.current, tam.w, tam.h, y * k)
+    /* Solo los que se ven: en un cuaderno largo, el resto es trabajo perdido. */
+    for (const t of trazos) if (aLaVista(t, y)) trazar(ctx, t, k)
     if (borrando) trazar(ctx, enCurso, k)
-  }, [trazos, tam, borrando ? enCurso : null])
+  }, [trazos, tam, y, borrando ? enCurso : null])
 
   useEffect(() => {
     if (!tam.w || !arriba.current) return
-    const ctx = preparar(arriba.current, tam.w, tam.h)
+    const ctx = preparar(arriba.current, tam.w, tam.h, y * k)
     if (enCurso && !borrando) trazar(ctx, enCurso, k)
-  }, [enCurso, tam])
+  }, [enCurso, tam, y])
+
+  /* La barrita del costado: dónde estás en lo escrito. Aparece apenas hay
+     algo más abajo de lo que se ve, o si ya se bajó. */
+  const escrito = fondoEscrito(trazos)
+  const total = Math.max(escrito + ALTO / 2, y + ALTO)
+  const barra = y > 0 || escrito > ALTO
 
   return (
     <div ref={marco} className={`relative min-h-0 min-w-0 overflow-hidden ${className}`}>
       <div ref={papelRef} {...eventos}
         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl shadow-lg overflow-hidden"
-        style={{ width: tam.w, height: tam.h, touchAction: 'none', ...fondoCss(fondo, k) }}>
+        style={{ width: tam.w, height: tam.h, touchAction: 'none', ...fondoCss(fondo, k, y) }}>
         <canvas ref={abajo} className="absolute inset-0" style={{ width: tam.w, height: tam.h }} />
         <canvas ref={arriba} className="absolute inset-0" style={{ width: tam.w, height: tam.h }} />
+        {barra && (
+          <div aria-hidden="true" className="absolute right-1.5 top-2 bottom-2 w-1.5 rounded-full pointer-events-none"
+            style={{ backgroundColor: 'rgba(100, 116, 139, 0.15)' }}>
+            <div className="absolute left-0 right-0 rounded-full"
+              style={{ top: `${(y / total) * 100}%`, height: `${(ALTO / total) * 100}%`, backgroundColor: 'rgba(71, 85, 105, 0.55)' }} />
+          </div>
+        )}
         {children}
       </div>
     </div>

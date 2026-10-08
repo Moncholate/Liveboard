@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ALTO, ANCHO, COLORES, GROSOR_BORRADOR, MAX_PAGINAS, botonDeBorrar, botonEnElAire, codificar, decodificar, enCursoVisible, idDeTrazo, lejos,
+  ALTO, ANCHO, COLORES, LARGO_MAX, aLaVista, fondoEscrito, yValida, GROSOR_BORRADOR, MAX_PAGINAS, botonDeBorrar, botonEnElAire, codificar, decodificar, enCursoVisible, idDeTrazo, lejos,
   trazosEnOrden, ultimoTrazo, unirPartes, vistaValida,
 } from './pizarra.js'
 import { TEXTOS } from '../i18n.jsx'
 
 describe('puntos del pizarrón', () => {
   it('viajan como texto corto, redondeados y dentro del papel', () => {
-    expect(codificar([[10.4, 20.6], [-5, 2000]])).toBe(`10,21 0,${ALTO}`)
+    expect(codificar([[10.4, 20.6], [-5, 2000]])).toBe('10,21 0,2000')
+    expect(codificar([[0, LARGO_MAX + 50]])).toBe(`0,${LARGO_MAX}`)
     expect(decodificar('10,21 0,900')).toEqual([[10, 21], [0, 900]])
     expect(codificar([[ANCHO + 1, 0]])).toBe(`${ANCHO},0`)
   })
@@ -81,13 +82,36 @@ describe('trazos', () => {
   })
 })
 
+describe('cuaderno hacia abajo', () => {
+  it('no se sube más allá del principio ni se baja más allá del final', () => {
+    expect(yValida(-30)).toBe(0)
+    expect(yValida(LARGO_MAX * 2)).toBe(LARGO_MAX - ALTO)
+    expect(yValida('nada')).toBe(0)
+  })
+
+  it('cada trazo sabe de qué alto a qué alto llega, y la página hasta dónde está escrita', () => {
+    const l = trazosEnOrden({ a: { p: '0,100 5,300' }, b: { p: '0,2000 5,1800' } })
+    expect(l.map(t => [t.yMin, t.yMax])).toEqual([[100, 300], [1800, 2000]])
+    expect(fondoEscrito(l)).toBe(2000)
+    expect(fondoEscrito([])).toBe(0)
+  })
+
+  it('solo se dibujan los trazos que caen en la ventana', () => {
+    const t = { yMin: 1800, yMax: 2000, grosor: 4 }
+    expect(aLaVista(t, 0)).toBe(false)
+    expect(aLaVista(t, 1000)).toBe(true)
+    expect(aLaVista(t, 2010)).toBe(false)
+    expect(aLaVista(t, 2002)).toBe(true) // el grosor asoma en el borde
+  })
+})
+
 describe('vista del pizarrón', () => {
   it('sin nada guardado, una página en blanco', () => {
-    expect(vistaValida(null)).toEqual({ pagina: 0, paginas: 1, fondo: 'blanco' })
+    expect(vistaValida(null)).toEqual({ pagina: 0, paginas: 1, fondo: 'blanco', y: 0 })
   })
 
   it('la página no se sale del rango y hay un máximo de páginas', () => {
-    expect(vistaValida({ pagina: 9, paginas: 3, fondo: 'cuadros' })).toEqual({ pagina: 2, paginas: 3, fondo: 'cuadros' })
+    expect(vistaValida({ pagina: 9, paginas: 3, fondo: 'cuadros', y: 450.6 })).toEqual({ pagina: 2, paginas: 3, fondo: 'cuadros', y: 451 })
     expect(vistaValida({ paginas: 999 }).paginas).toBe(MAX_PAGINAS)
     expect(vistaValida({ fondo: 'marciano' }).fondo).toBe('blanco')
   })

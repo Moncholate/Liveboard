@@ -6,8 +6,9 @@
    sala (como el celular para moderar).
 
      boards/{pin}/pizarra/
-       vista     { pagina, paginas, fondo }   en qué página va, cuántas hay y
-                 el papel (blanco, cuadros o líneas), igual para todas
+       vista     { pagina, paginas, fondo, y }   en qué página va, cuántas hay,
+                 el papel (blanco, cuadros o líneas), igual para todas, y cuánto
+                 se bajó en la página (CUADERNO, abajo)
        paginas   { n: { trazos: { tid: { c, g, b?, p } } } }
        enCurso   { id, pg, c, g, b?, partes: { k: p } }   el trazo que se está
                  escribiendo, para que el proyector lo vea antes de levantar
@@ -17,9 +18,14 @@
    Si se proyecta o no va en `estado.pizarra`, junto a la actividad: pasar a
    otra actividad reescribe el estado y la pizarra se aparta sola.
 
-   Las coordenadas son de un papel fijo de 1600 × 900 (16:9) en enteros, así el
-   trazo se ve igual en la tablet y en un proyector de cualquier tamaño, y viaja
-   como texto corto: «x,y x,y …».
+   Las coordenadas son de un papel de 1600 de ancho en enteros, así el trazo se
+   ve igual en la tablet y en un proyector de cualquier tamaño, y viaja como
+   texto corto: «x,y x,y …».
+
+   CUADERNO (8-oct-2026): cada página sigue hacia abajo, hasta LARGO_MAX. Se ve
+   una ventana de 1600 × 900 (16:9) que empieza en `vista.y`; la tablet la
+   baja con dos dedos y el proyector la sigue. El ancho no cambia y no hay
+   zoom: es un cuaderno sin fin, no un lienzo infinito.
 
    No son datos de estudiantes: es lo que escribe el docente, y se borra al
    cerrar la sala.
@@ -27,7 +33,8 @@
 import { raiz } from './sala.js'
 
 export const ANCHO = 1600
-export const ALTO = 900
+export const ALTO = 900 // lo que se ve de una vez
+export const LARGO_MAX = ALTO * 50 // hasta dónde baja el cuaderno
 
 /* Colores que se leen bien sobre papel blanco en un proyector desteñido. */
 export const COLORES = [
@@ -51,14 +58,24 @@ export const fondoPizarraValido = (f) => (FONDOS_PIZARRA.includes(f) ? f : 'blan
 export const vistaValida = (v) => {
   const paginas = Math.min(MAX_PAGINAS, Math.max(1, Number.isInteger(v?.paginas) ? v.paginas : 1))
   const pagina = Math.min(paginas - 1, Math.max(0, Number.isInteger(v?.pagina) ? v.pagina : 0))
-  return { pagina, paginas, fondo: fondoPizarraValido(v?.fondo) }
+  return { pagina, paginas, fondo: fondoPizarraValido(v?.fondo), y: yValida(v?.y) }
 }
+
+/** Cuánto se bajó, sin pasarse del principio ni del final del cuaderno. */
+export const yValida = (y) => Math.round(Math.min(LARGO_MAX - ALTO, Math.max(0, Number.isFinite(y) ? y : 0)))
+
+/** Hasta dónde llega lo escrito en la página (para la barrita del costado). */
+export const fondoEscrito = (trazos) => trazos.reduce((m, t) => Math.max(m, t.yMax), 0)
+
+/** ¿Se ve algo de este trazo en la ventana que empieza en y? Con grosor de
+    sobra, para que un trazo justo en el borde no se corte. */
+export const aLaVista = (t, y) => t.yMax + t.grosor >= y && t.yMin - t.grosor <= y + ALTO
 
 /* ── Puntos ────────────────────────────────────────────────────────────── */
 
 /** [[x, y], …] → «x,y x,y», redondeado y dentro del papel. */
 export const codificar = (puntos) => puntos
-  .map(([x, y]) => `${Math.round(Math.min(ANCHO, Math.max(0, x)))},${Math.round(Math.min(ALTO, Math.max(0, y)))}`)
+  .map(([x, y]) => `${Math.round(Math.min(ANCHO, Math.max(0, x)))},${Math.round(Math.min(LARGO_MAX, Math.max(0, y)))}`)
   .join(' ')
 
 /** «x,y x,y» → [[x, y], …]; lo que no se entiende se salta. */
@@ -114,6 +131,10 @@ export const trazosEnOrden = (trazos) => Object.entries(trazos || {})
     puntos: decodificar(t?.p),
   }))
   .filter(t => t.puntos.length)
+  .map(t => {
+    const ys = t.puntos.map(p => p[1])
+    return { ...t, yMin: Math.min(...ys), yMax: Math.max(...ys) }
+  })
 
 /** El último trazo de la página, el que borra «deshacer». */
 export const ultimoTrazo = (trazos) => Object.keys(trazos || {}).sort().at(-1) ?? null
