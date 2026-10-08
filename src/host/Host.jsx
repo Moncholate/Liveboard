@@ -17,6 +17,7 @@
    ========================================================================== */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode'
+import { QrAmpliable } from '../live/QrAmpliable.jsx'
 import { useStore, useUser, useValue } from '../net/hooks.js'
 import { isOnline } from '../net/store.js'
 import { Button, Center, Logo, urlParaUnirse } from '../ui.jsx'
@@ -331,15 +332,22 @@ function PanelMateriales({ store, user, lista, fondo, onCargar }) {
   )
 }
 
+/* El QR va chico y con ⤢: tocándolo viaja al centro, grande, para que se
+   pueda escanear desde cualquier puesto (al costado costaba, 8-oct-2026). */
 function Unirse({ pin, online }) {
   const t = useT()
   const url = urlParaUnirse(pin)
-  const qr = useQr(url, 420)
+  const qr = useQr(url, 720)
+  const direccion = url.split('#')[0]
   return (
     <section className="rounded-3xl bg-white border border-slate-200 p-6 flex flex-col items-center justify-center text-center gap-3">
       <p className="text-xl font-bold text-slate-700">{t('escaneaParaEntrar')}</p>
-      {qr && <img src={qr} alt={t('qrEntrar')} className="w-72 h-72" />}
-      <p className="text-slate-500">{t('oEntraA')} <b className="text-slate-800 break-all">{url.split('#')[0]}</b> {t('conElPin')}</p>
+      {qr && (
+        <QrAmpliable src={qr} alt={t('qrEntrar')} etiqueta={t('agrandarCodigo')} claseQr="w-36 h-36" className="my-1"
+          titulo={t('escaneaParaEntrar')} cerrarTexto={`${direccion} · ${t('tocaCerrar')}`}
+          pie={<p className="text-6xl font-black tracking-[.2em]">{pin}</p>} />
+      )}
+      <p className="text-slate-500">{t('oEntraA')} <b className="text-slate-800 break-all">{direccion}</b> {t('conElPin')}</p>
       <p className="text-6xl font-black tracking-[.2em] text-slate-900">{pin}</p>
       <p className="text-lg text-slate-600">{t('conectados', conectados(online))}</p>
     </section>
@@ -470,31 +478,23 @@ function useQr(texto, ancho) {
 }
 
 /* En plena actividad el QR queda chico en una esquina, por si llega alguien
-   tarde; tocándolo se agranda. */
+   tarde; tocándolo viaja al centro y se agranda (QrAmpliable). */
 function JoinCorner({ pin }) {
   const t = useT()
   const url = urlParaUnirse(pin)
-  const [grande, setGrande] = useState(false)
   const qr = useQr(url, 720)
   if (!qr) return null
   return (
-    <>
-      <button onClick={() => setGrande(true)} className="flex items-center gap-2 rounded-xl bg-white border border-slate-200 p-1.5 pr-3">
-        <img src={qr} alt={t('qrEntrar')} className="w-14 h-14" />
+    <div className="rounded-xl bg-white border border-slate-200 p-1.5 pr-3">
+      <QrAmpliable src={qr} alt={t('qrEntrar')} etiqueta={t('agrandarCodigo')} claseQr="w-14 h-14" insigniaChica className="!flex-row gap-3"
+        titulo={t('escaneaParaEntrar')} cerrarTexto={`${url.split('#')[0]} · ${t('tocaCerrar')}`}
+        pie={<p className="text-6xl font-black tracking-[.2em]">{pin}</p>}>
         <span className="text-left leading-tight">
           <span className="block text-xs text-slate-500">{t('pin')}</span>
           <span className="block text-xl font-black tracking-widest text-slate-900">{pin}</span>
         </span>
-      </button>
-      {grande && (
-        <div onClick={() => setGrande(false)} className="fixed inset-0 z-50 bg-white/95 grid place-items-center cursor-pointer">
-          <div className="text-center">
-            <img src={qr} alt={t('qrEntrar')} className="w-[min(60vh,80vw)] h-[min(60vh,80vw)] mx-auto" />
-            <p className="text-6xl font-black tracking-[.2em] text-slate-900 mt-4">{pin}</p>
-          </div>
-        </div>
-      )}
-    </>
+      </QrAmpliable>
+    </div>
   )
 }
 

@@ -70,6 +70,8 @@ export const TEXTOS = {
   escaneaParaEntrar: { es: 'Escanea para entrar', en: 'Scan to join' },
   qrEntrar: { es: 'Código QR para entrar a la sala', en: 'QR code to join the room' },
   oEntraA: { es: 'o entra a', en: 'or go to' },
+  agrandarCodigo: { es: 'Agrandar el código para entrar', en: 'Enlarge the join code' },
+  tocaCerrar: { es: 'toca para cerrar', en: 'tap to close' },
   conElPin: { es: 'con el PIN', en: 'with the PIN' },
   idiomaSala: { es: 'Idioma de la sala', en: 'Room language' },
   idiomaAyuda: { es: 'Lo ven el proyector y los celulares.', en: 'Used on the projector and on phones.' },
