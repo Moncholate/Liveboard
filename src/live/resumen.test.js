@@ -58,7 +58,7 @@ describe('el resumen de la clase', () => {
     expect(r.pizarra.paginas).toHaveLength(1)
   })
 
-  it('dura 30 días y guarda el idioma de la sala', () => {
+  it('dura 15 días y guarda el idioma de la sala', () => {
     expect(r.vence - r.creado).toBe(DURACION_MS)
     expect(r.idioma).toBe('en')
   })

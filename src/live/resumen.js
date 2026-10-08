@@ -12,14 +12,15 @@
    abiertas y las preguntas, solo las aprobadas (con la corrección del docente);
    de la nube, solo las palabras visibles; del resto, los totales.
 
-   Dura 30 días: las reglas no dejan leerlo después (database.rules.json), y
+   Dura 15 días (el 8-oct-2026 el docente vio que se baja en la misma clase o
+   nunca): las reglas no dejan leerlo después (database.rules.json), y
    el proyector borra los vencidos que creó en ese computador.
    ========================================================================== */
 import { abiertas, conteoEncuesta, estadisticaEscala, idAlAzar, nube, preguntasDelCurso, resultadoRanking } from './logic.js'
 import { comoLista } from './sala.js'
 import { fondoPizarraValido } from './pizarra.js'
 
-export const DIAS = 30
+export const DIAS = 15
 export const DURACION_MS = DIAS * 24 * 60 * 60 * 1000
 
 export const rutaResumen = (id) => `resumenes/${id}`

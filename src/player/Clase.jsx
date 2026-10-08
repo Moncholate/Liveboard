@@ -4,7 +4,7 @@
    Lo que abre el enlace o el QR de «Compartir la clase»: la clase en limpio,
    para leerla en el celular, y el botón para descargarla en PDF. Sirve
    también para quienes faltaron (el docente pega el enlace en el aula
-   virtual). Dura 30 días (resumen.js). Sin nombres.
+   virtual). Dura 15 días (resumen.js). Sin nombres.
    ========================================================================== */
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../net/hooks.js'

@@ -583,7 +583,7 @@ function borrarResumenesVencidos(store) {
   guardarMios(mios)
 }
 
-/* Copia la clase, sin nombres, a un resumen que dura 30 días, y avisa a los
+/* Copia la clase, sin nombres, a un resumen que dura 15 días, y avisa a los
    celulares que están en la sala. El QR y el enlace son para quien no estaba
    conectado y para el aula virtual. «Actualizar» hace una copia nueva con lo
    último (los celulares pasan a la nueva). */
