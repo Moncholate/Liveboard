@@ -104,6 +104,14 @@ function EnVivo({ store, base, idx, total, actividad, estado, participantes, acc
         <Button variant="ghost" className="!py-2 text-sm" onClick={() => acciones.resultados(!estado.resultados)}>
           {estado.resultados ? t('ocultarResultados') : t('mostrarResultados')}
         </Button>
+        {/* La columna de moderación en el proyector: para corregir en grupo
+            mientras se modera desde aquí. */}
+        {['nube', 'abierta', 'preguntas'].includes(actividad.tipo) && (
+          <Button variant="ghost" onClick={() => acciones.moderando(!estado.moderando)}
+            className={`col-span-2 !py-2 text-sm ${estado.moderando ? '!border-teal-600 !text-teal-800 !bg-teal-50' : ''}`}>
+            {estado.moderando ? `● ${t('moderacionEnProyector')}` : t('mostrarModeracion')}
+          </Button>
+        )}
       </section>
 
       {['nube', 'abierta', 'preguntas'].includes(actividad.tipo) ? (

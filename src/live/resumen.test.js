@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DURACION_MS, armarResumen, resumenVacio, vencidos } from './resumen.js'
 import { nombreArchivo, textoParaPdf } from './pdfClase.js'
+import { materialParaGuardar } from './materiales.js'
 
 const sala = {
   idioma: 'en',
@@ -70,6 +71,24 @@ describe('el resumen de la clase', () => {
 
   it('sabe cuáles de los suyos ya vencieron', () => {
     expect(vencidos({ a: 5, b: 50 }, 10)).toEqual(['a'])
+  })
+})
+
+describe('título y objetivo de la clase', () => {
+  it('el resumen los lleva si la sala los tiene, y no si no', () => {
+    const r = armarResumen({ clase: { titulo: '  Unidad 3 ·  Past simple ', objetivo: 'Narrar experiencias pasadas.' } }, 1)
+    expect(r).toMatchObject({ titulo: 'Unidad 3 · Past simple', objetivo: 'Narrar experiencias pasadas.' })
+    expect(armarResumen({}, 1).titulo).toBeUndefined()
+  })
+
+  it('el archivo se llama como la unidad, con la fecha', () => {
+    expect(nombreArchivo(new Date(2026, 9, 8, 15).getTime(), 'Unidad 3 · Past simple')).toBe('unidad-3-past-simple-2026-10-08.pdf')
+    expect(nombreArchivo(new Date(2026, 9, 8, 15).getTime(), 'Canción ¡ñandú!')).toBe('cancion-nandu-2026-10-08.pdf')
+  })
+
+  it('un material guarda el objetivo, y sin objetivo no deja el campo', () => {
+    expect(materialParaGuardar({ nombre: 'U3', objetivo: ' Narrar. ', actividades: [] }, 1).objetivo).toBe('Narrar.')
+    expect('objetivo' in materialParaGuardar({ nombre: 'U3', actividades: [] }, 1)).toBe(false)
   })
 })
 

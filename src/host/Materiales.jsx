@@ -14,7 +14,7 @@ import { useStore, useUser, useValue } from '../net/hooks.js'
 import { isOnline } from '../net/store.js'
 import { Button, Center, Logo } from '../ui.jsx'
 import { ProveedorIdioma, SelectorIdioma, idiomaDelNavegador, traducir, useT, valido } from '../i18n.jsx'
-import { listaDeMateriales, idMaterialNuevo, materialParaGuardar, rutaMaterial, rutaMateriales } from '../live/materiales.js'
+import { LARGO_OBJETIVO, LARGO_TITULO, listaDeMateriales, idMaterialNuevo, materialParaGuardar, rutaMaterial, rutaMateriales } from '../live/materiales.js'
 import { Editor } from './Editor.jsx'
 import { Cuenta, iniciarSesion } from './Cuenta.jsx'
 import { IDIOMA_KEY, guardado } from './Host.jsx'
@@ -127,6 +127,7 @@ function EditarMaterial({ store, user, id, onVolver }) {
 function Formulario({ store, ruta, inicial, onVolver }) {
   const t = useT()
   const [nombre, setNombre] = useState(inicial.nombre)
+  const [objetivo, setObjetivo] = useState(inicial.objetivo)
   const [idioma, setIdioma] = useState(inicial.idioma)
   const [fondo, setFondo] = useState(inicial.fondo)
   const [lista, setLista] = useState(inicial.actividades)
@@ -137,11 +138,11 @@ function Formulario({ store, ruta, inicial, onVolver }) {
     if (primera.current) { primera.current = false; return }
     setEstado('guardando')
     const espera = setTimeout(async () => {
-      await store.set(ruta, materialParaGuardar({ nombre, idioma, fondo, actividades: lista }, store.stamp()))
+      await store.set(ruta, materialParaGuardar({ nombre, objetivo, idioma, fondo, actividades: lista }, store.stamp()))
       setEstado('guardado')
     }, 500)
     return () => clearTimeout(espera)
-  }, [nombre, idioma, fondo, lista])
+  }, [nombre, objetivo, idioma, fondo, lista])
 
   return (
     <div className="flex flex-col gap-4">
@@ -153,8 +154,14 @@ function Formulario({ store, ruta, inicial, onVolver }) {
       <div className="rounded-2xl bg-white border border-slate-200 p-4 flex flex-col gap-3">
         <label className="flex flex-col gap-1">
           <span className="text-sm font-bold text-slate-700">{t('nombreMaterial')}</span>
-          <input value={nombre} maxLength={60} placeholder={t('nombreMaterialEj')} onChange={(e) => setNombre(e.target.value)}
+          <input value={nombre} maxLength={LARGO_TITULO} placeholder={t('nombreMaterialEj')} onChange={(e) => setNombre(e.target.value)}
             className="rounded-lg border border-slate-300 px-3 py-2 font-semibold focus:border-teal-600 outline-none" />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-bold text-slate-700">{t('objetivoClase')}</span>
+          <textarea value={objetivo} maxLength={LARGO_OBJETIVO} rows={2} placeholder={t('objetivoClaseEj')} onChange={(e) => setObjetivo(e.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 focus:border-teal-600 outline-none resize-none" />
+          <span className="text-xs text-slate-500">{t('estaClaseAyuda')}</span>
         </label>
         <div className="flex items-center gap-3">
           <div className="flex-1">

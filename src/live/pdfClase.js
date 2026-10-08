@@ -29,10 +29,14 @@ const GRIS = [100, 116, 139]
 const TINTA = [15, 23, 42]
 const BARRA_FONDO = [241, 245, 249]
 
-export const nombreArchivo = (creado) => {
+/* «unidad-3-past-simple-2026-10-08.pdf»: con título se reconoce en la
+   carpeta de descargas; sin título, «clase-2026-10-08.pdf». */
+export const nombreArchivo = (creado, titulo = '') => {
   const d = new Date(creado)
   const dos = (n) => String(n).padStart(2, '0')
-  return `clase-${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}.pdf`
+  const base = String(titulo).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z0-9ñ]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'clase'
+  return `${base}-${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}.pdf`
 }
 
 export async function descargarPdf(resumen) {
@@ -83,10 +87,18 @@ export async function descargarPdf(resumen) {
     doc.text(textoParaPdf(der), M + W, antes + 11 * 0.42 * 0.8, { align: 'right' })
   }
 
-  /* Portada: la fecha y que no lleva nombres. */
+  /* Portada: el título de la unidad y el objetivo, si los hay, y siempre la
+     fecha y que no lleva nombres. */
   const fecha = new Date(resumen.creado).toLocaleDateString(resumen.idioma === 'en' ? 'en-US' : 'es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
-  parrafo(t('claseDel', fecha), { size: 20, bold: true, gap: 1 })
-  parrafo(t('pdfSubtitulo'), { size: 10, color: GRIS, gap: 6 })
+  if (resumen.titulo) {
+    parrafo(resumen.titulo, { size: 20, bold: true, gap: 1.5 })
+    if (resumen.objetivo) parrafo(`${t('objetivo')}: ${resumen.objetivo}`, { size: 11, gap: 1.5 })
+    parrafo(`${t('claseDel', fecha)} · ${t('pdfSubtitulo')}`, { size: 10, color: GRIS, gap: 6 })
+  } else {
+    parrafo(t('claseDel', fecha), { size: 20, bold: true, gap: 1 })
+    if (resumen.objetivo) parrafo(`${t('objetivo')}: ${resumen.objetivo}`, { size: 11, gap: 1.5 })
+    parrafo(t('pdfSubtitulo'), { size: 10, color: GRIS, gap: 6 })
+  }
 
   resumen.actividades.forEach((a, n) => {
     salto(22)
@@ -154,5 +166,5 @@ export async function descargarPdf(resumen) {
     })
   })
 
-  doc.save(nombreArchivo(resumen.creado))
+  doc.save(nombreArchivo(resumen.creado, resumen.titulo))
 }

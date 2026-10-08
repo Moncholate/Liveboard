@@ -4,7 +4,10 @@
    Lo que el docente prepara en casa y carga en clase con un clic. Vive en su
    cuenta, no en el computador del proyector:
 
-     docentes/{uid}/liveboard/{id}   { nombre, idioma, fondo, actividades, actualizado }
+     docentes/{uid}/liveboard/{id}   { nombre, objetivo?, idioma, fondo, actividades, actualizado }
+
+   `nombre` es también el TÍTULO DE LA CLASE (8-oct-2026): el que sale en el
+   PDF que se llevan los estudiantes, con el `objetivo` si lo tiene.
 
    `docentes/{uid}` es del bundle entero: cada app guarda lo suyo en su propia
    rama (liveboard, y las que vengan), y las reglas dejan leer y escribir solo
@@ -16,6 +19,13 @@ import { idAlAzar, limpiarActividad } from './logic.js'
 import { comoLista } from './sala.js'
 import { fondoValido } from './fondos.js'
 
+/* El título y el objetivo de la clase: los de la sala (boards/{pin}/clase) y
+   los de un material son lo mismo. */
+export const LARGO_TITULO = 60
+export const LARGO_OBJETIVO = 200
+export const limpiarTitulo = (s) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, LARGO_TITULO)
+export const limpiarObjetivo = (s) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, LARGO_OBJETIVO)
+
 export const rutaMateriales = (uid) => `docentes/${uid}/liveboard`
 export const rutaMaterial = (uid, id) => `${rutaMateriales(uid)}/${id}`
 
@@ -23,8 +33,9 @@ export const idMaterialNuevo = (azar = Math.random) => idAlAzar(azar)
 
 /** Lo que se guarda: sin espacios de sobra, con el idioma, y con la hora del
     servidor (`stamp`) para ordenar la lista. */
-export const materialParaGuardar = ({ nombre, idioma, fondo, actividades }, stamp) => ({
-  nombre: String(nombre || '').replace(/\s+/g, ' ').trim().slice(0, 60),
+export const materialParaGuardar = ({ nombre, objetivo, idioma, fondo, actividades }, stamp) => ({
+  nombre: limpiarTitulo(nombre),
+  ...(limpiarObjetivo(objetivo) ? { objetivo: limpiarObjetivo(objetivo) } : {}),
   idioma: idioma === 'en' ? 'en' : 'es',
   fondo: fondoValido(fondo),
   actividades: comoLista(actividades).map(limpiarActividad),
@@ -36,6 +47,7 @@ export const listaDeMateriales = (raw) => Object.entries(raw || {})
   .map(([id, m]) => ({
     id,
     nombre: m?.nombre || '',
+    objetivo: m?.objetivo || '',
     idioma: m?.idioma === 'en' ? 'en' : 'es',
     fondo: fondoValido(m?.fondo),
     actividades: comoLista(m?.actividades),

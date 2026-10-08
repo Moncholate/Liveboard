@@ -4,11 +4,16 @@
    boards/{pin}/
      meta          { creada, clave }   clave = la del enlace para moderar
      idioma        'es' | 'en'   lo siguen el proyector y todos los celulares
-     estado        { idx, abierta, resultados, pizarra? }
+     estado        { idx, abierta, resultados, pizarra?, moderando? }
                    idx null = preparando (sala de espera); si no, la actividad
                    que se está mostrando. pizarra = el proyector muestra el
-                   pizarrón encima (pizarra.js); cambiar de actividad lo aparta
+                   pizarrón encima (pizarra.js); cambiar de actividad lo aparta.
+                   moderando = el proyector muestra la columna de moderación
+                   (sin nombres), para corregir en grupo; se prende y apaga
+                   desde el PC o desde la tablet, y sigue al cambiar de actividad
      pizarra       lo que escribe el docente en su tablet (pizarra.js)
+     clase         { titulo, objetivo? }   salen en el PDF de la clase
+                   (resumen.js); se cargan con un material
      actividades   [ { id, tipo, pregunta, alternativas? } ]
      participantes { pid: { nombre, at } }
      online        { pid: true | false }
@@ -38,6 +43,7 @@
    terminan haciendo cosas distintas.
    ========================================================================== */
 import { claveDePalabra, limpiarAbierta, limpiarActividad, limpiarPalabra } from './logic.js'
+import { limpiarObjetivo, limpiarTitulo } from './materiales.js'
 
 export const raiz = (pin) => `boards/${pin}`
 
@@ -48,14 +54,18 @@ export const accionesDeSala = (store, pin) => {
     return limpio && limpio !== limpiarAbierta(de) ? store.set(ruta, { texto: limpio, de: limpiarAbierta(de) }) : store.remove(ruta)
   }
   /* Cada actividad arranca abierta y con los resultados a la vista. */
-  const mostrar = (idx) => store.set(`${base}/estado`, { idx, abierta: true, resultados: true })
+  const mostrar = (idx) => store.update(`${base}/estado`, { idx, abierta: true, resultados: true, pizarra: null })
   return {
     mostrar,
-    volverAPreparar: () => store.set(`${base}/estado`, { idx: null, abierta: false, resultados: false }),
+    volverAPreparar: () => store.update(`${base}/estado`, { idx: null, abierta: false, resultados: false, pizarra: null }),
+    moderando: (si) => store.update(`${base}/estado`, { moderando: si ? true : null }),
     abrir: (abierta) => store.update(`${base}/estado`, { abierta }),
     pizarra: (si) => store.update(`${base}/estado`, { pizarra: si ? true : null }),
     resultados: (resultados) => store.update(`${base}/estado`, { resultados }),
     guardarActividades: (lista) => store.set(`${base}/actividades`, lista.map(limpiarActividad)),
+    guardarClase: ({ titulo, objetivo }) => store.set(`${base}/clase`, {
+      titulo: limpiarTitulo(titulo), ...(limpiarObjetivo(objetivo) ? { objetivo: limpiarObjetivo(objetivo) } : {}),
+    }),
     cambiarIdioma: (idioma) => store.set(`${base}/idioma`, idioma === 'en' ? 'en' : 'es'),
     moderarPalabra: (aid, clave, decision) => store.set(`${base}/moderacion/${aid}/palabras/${clave}`, decision),
     decidirAbierta: (aid, pid, decision) => store.set(`${base}/moderacion/${aid}/abiertas/${pid}`, decision),

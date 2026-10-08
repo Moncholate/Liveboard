@@ -5,7 +5,7 @@
    estudiantes se la lleven en PDF (pedido el 8-oct-2026: sacaban fotos al
    proyector). Se copia aparte porque la sala se borra al cerrarla.
 
-     resumenes/{id}   { creado, vence, idioma, actividades: [...], pizarra }
+     resumenes/{id}   { creado, vence, idioma, titulo?, objetivo?, actividades: [...], pizarra }
      boards/{pin}/resumen   id   el aviso a los celulares que están en la sala
 
    Va SIN NOMBRES, igual que el proyector: solo lo que el curso ya vio. De las
@@ -19,6 +19,7 @@
 import { abiertas, conteoEncuesta, estadisticaEscala, idAlAzar, nube, preguntasDelCurso, resultadoRanking } from './logic.js'
 import { comoLista } from './sala.js'
 import { fondoPizarraValido } from './pizarra.js'
+import { limpiarObjetivo, limpiarTitulo } from './materiales.js'
 
 export const DIAS = 15
 export const DURACION_MS = DIAS * 24 * 60 * 60 * 1000
@@ -75,10 +76,14 @@ export const armarResumen = (sala, ahora) => {
   const actividades = comoLista(sala?.actividades)
     .map(a => resultadoDe(a, sala?.respuestas?.[a.id], sala?.moderacion?.[a.id]))
     .filter(r => r && tieneAlgo(r))
+  const titulo = limpiarTitulo(sala?.clase?.titulo)
+  const objetivo = limpiarObjetivo(sala?.clase?.objetivo)
   return {
     creado: ahora,
     vence: ahora + DURACION_MS,
     idioma: sala?.idioma === 'en' ? 'en' : 'es',
+    ...(titulo ? { titulo } : {}),
+    ...(objetivo ? { objetivo } : {}),
     actividades,
     pizarra: paginasConAlgo(sala?.pizarra),
   }

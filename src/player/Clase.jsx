@@ -81,8 +81,9 @@ function Vista({ resumen }) {
       <header className="px-4 py-3 bg-white border-b border-slate-200"><Logo className="text-xl" /></header>
       <main className="max-w-2xl mx-auto p-4 flex flex-col gap-5">
         <section className="flex flex-col gap-2">
-          <h1 className="text-2xl font-black text-slate-900">{t('claseDel', fecha)}</h1>
-          <p className="text-sm text-slate-500">{t('pdfSubtitulo')} · {t('disponibleHasta', vence)}</p>
+          <h1 className="text-2xl font-black text-slate-900">{resumen.titulo || t('claseDel', fecha)}</h1>
+          {resumen.objetivo && <p className="text-slate-700"><b>{t('objetivo')}:</b> {resumen.objetivo}</p>}
+          <p className="text-sm text-slate-500">{resumen.titulo ? `${t('claseDel', fecha)} · ` : ''}{t('pdfSubtitulo')} · {t('disponibleHasta', vence)}</p>
           <BotonPdf resumen={resumen} className="text-lg mt-1" />
         </section>
         {resumen.actividades.map((a, n) => <Actividad key={n} a={a} n={n} />)}

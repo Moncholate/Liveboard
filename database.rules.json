@@ -49,6 +49,10 @@
         "pizarra": {
           ".write": true
         },
+        "clase": {
+          ".write": true,
+          ".validate": "newData.child('titulo').isString() && newData.child('titulo').val().length <= 60 && (!newData.child('objetivo').exists() || (newData.child('objetivo').isString() && newData.child('objetivo').val().length <= 200))"
+        },
         "resumen": {
           ".write": true,
           ".validate": "newData.isString() && newData.val().length === 12"

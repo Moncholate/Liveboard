@@ -25,7 +25,7 @@ import { ProveedorIdioma, SelectorIdioma, idiomaDelNavegador, traducir, useT, va
 import { abiertas, cuantosRespondieron, idAlAzar, pinAlAzar, preguntasDelCurso, problemaDe, seVenCorrecciones } from '../live/logic.js'
 import { accionesDeSala, comoLista, conectados, raiz } from '../live/sala.js'
 import {
-  actividadesParaSala, idMaterialNuevo, listaDeMateriales, materialParaGuardar, rutaMaterial, rutaMateriales,
+  LARGO_OBJETIVO, LARGO_TITULO, actividadesParaSala, idMaterialNuevo, listaDeMateriales, materialParaGuardar, rutaMaterial, rutaMateriales,
 } from '../live/materiales.js'
 import { Abiertas, Encuesta, Escala, Nube, Preguntas, Ranking } from '../live/Resultados.jsx'
 import { Moderacion } from '../live/Moderacion.jsx'
@@ -44,6 +44,11 @@ import { ALTO, enCursoVisible, rutaPizarra, trazosEnOrden, vistaValida, yValida 
 
 const PIN_KEY = 'liveboard-host-pin'
 const ULTIMAS_KEY = 'liveboard-ultimas'
+/* El título y el objetivo de la última clase, como las actividades. */
+const CLASE_KEY = 'liveboard-clase'
+const ultimaClase = () => {
+  try { return JSON.parse(guardado.get(CLASE_KEY)) || null } catch { return null }
+}
 export const IDIOMA_KEY = 'liveboard-idioma'
 /* El fondo del proyector: es de este computador, no de la sala, porque solo
    lo ve el proyector (los celulares no lo usan). Un material lo trae consigo. */
@@ -83,6 +88,7 @@ async function abrirSala(store) {
     idioma: valido(guardado.get(IDIOMA_KEY) || idiomaDelNavegador()),
     estado: { abierta: false, resultados: false },
     ...(lista.length ? { actividades: lista } : {}),
+    ...(ultimaClase()?.titulo ? { clase: ultimaClase() } : {}),
   })
   guardado.set(PIN_KEY, pin)
   guardado.set(ORIGEN_KEY, null)
@@ -112,6 +118,7 @@ function Sala({ store, pin, onCerrada }) {
   const actividadesRaw = useValue(store, `${base}/actividades`)
   const online = useValue(store, `${base}/online`)
   const participantes = useValue(store, `${base}/participantes`)
+  const clase = useValue(store, `${base}/clase`)
   const user = useUser(store)
   const acciones = useMemo(() => accionesDeSala(store, pin), [store, pin])
   const idioma = valido(idiomaRaw)
@@ -135,7 +142,7 @@ function Sala({ store, pin, onCerrada }) {
   }, [user?.uid, meta?.creada])
 
   /* Las actividades también: Preparar las copia al montarse para editarlas. */
-  if (meta === undefined || estado === undefined || actividadesRaw === undefined || idiomaRaw === undefined) {
+  if (meta === undefined || estado === undefined || actividadesRaw === undefined || idiomaRaw === undefined || clase === undefined) {
     return <Center>{traducir(idioma, 'cargando')}</Center>
   }
 
@@ -157,7 +164,7 @@ function Sala({ store, pin, onCerrada }) {
           : actual
           ? <Presentar store={store} base={base} pin={pin} idx={idx} actividad={actual} total={actividades.length}
               estado={estado} participantes={participantes} acciones={acciones} fondo={fondo} />
-          : <Preparar store={store} user={user} pin={pin} online={online} actividades={actividades} acciones={acciones}
+          : <Preparar store={store} user={user} pin={pin} online={online} actividades={actividades} acciones={acciones} clase={clase}
               fondo={fondo} setFondo={setFondo} />}
       </div>
     </ProveedorIdioma>
@@ -185,7 +192,7 @@ function Encabezado({ store, user, pin, meta, online, tema, onCerrar, acciones }
 
 /* ── Preparar ────────────────────────────────────────────────────────────── */
 
-function Preparar({ store, user, pin, online, actividades, acciones, fondo, setFondo }) {
+function Preparar({ store, user, pin, online, actividades, acciones, clase, fondo, setFondo }) {
   const t = useT()
   /* Se edita en local y se guarda en la sala con una pausa: escribir en la base
      con cada tecla hace saltar el cursor cuando vuelve el eco. */
@@ -199,6 +206,20 @@ function Preparar({ store, user, pin, online, actividades, acciones, fondo, setF
     }, 400)
     return () => clearTimeout(espera)
   }, [lista])
+
+  /* TÍTULO Y OBJETIVO DE LA CLASE (8-oct-2026): salen en el PDF que se llevan
+     los estudiantes. Se editan en local y se guardan con pausa, como la lista. */
+  const [titulo, setTitulo] = useState(clase?.titulo || '')
+  const [objetivo, setObjetivo] = useState(clase?.objetivo || '')
+  const primeraClase = useRef(true)
+  useEffect(() => {
+    if (primeraClase.current) { primeraClase.current = false; return }
+    const espera = setTimeout(() => {
+      acciones.guardarClase({ titulo, objetivo })
+      guardado.set(CLASE_KEY, JSON.stringify({ titulo, objetivo }))
+    }, 400)
+    return () => clearTimeout(espera)
+  }, [titulo, objetivo])
 
   const lanzar = async (i) => {
     await acciones.guardarActividades(lista)
@@ -237,8 +258,21 @@ function Preparar({ store, user, pin, online, actividades, acciones, fondo, setF
           <h2 className="text-xl font-black text-slate-900">{t('actividades')}</h2>
           <Button disabled={primeraLista < 0} onClick={() => lanzar(primeraLista)}>{t('empezar')}</Button>
         </div>
-        <PanelMateriales store={store} user={user} lista={lista} fondo={fondo}
-          onCargar={(m) => { setLista(actividadesParaSala(m)); cambiarIdioma(m.idioma); setFondo(m.fondo) }} />
+        <div className="rounded-2xl bg-white border border-slate-200 p-4 flex flex-col gap-2">
+          <p className="font-bold text-slate-800">{t('estaClase')}</p>
+          <input value={titulo} maxLength={LARGO_TITULO} placeholder={t('nombreMaterialEj')} aria-label={t('nombreMaterial')}
+            onChange={(e) => setTitulo(e.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 font-semibold focus:border-teal-600 outline-none" />
+          <textarea value={objetivo} maxLength={LARGO_OBJETIVO} rows={2} placeholder={t('objetivoClaseEj')} aria-label={t('objetivoClase')}
+            onChange={(e) => setObjetivo(e.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 focus:border-teal-600 outline-none resize-none" />
+          <p className="text-xs text-slate-500">{t('estaClaseAyuda')}</p>
+        </div>
+        <PanelMateriales store={store} user={user} lista={lista} fondo={fondo} titulo={titulo} objetivo={objetivo}
+          onCargar={(m) => {
+            setLista(actividadesParaSala(m)); cambiarIdioma(m.idioma); setFondo(m.fondo)
+            setTitulo(m.nombre); setObjetivo(m.objetivo)
+          }} />
         <Editor lista={lista} setLista={setLista} onMostrar={lanzar} />
       </section>
     </main>
@@ -246,7 +280,7 @@ function Preparar({ store, user, pin, online, actividades, acciones, fondo, setF
 }
 
 /* Cargar un material en la sala, o guardar lo que se armó aquí. */
-function PanelMateriales({ store, user, lista, fondo, onCargar }) {
+function PanelMateriales({ store, user, lista, fondo, titulo, objetivo, onCargar }) {
   const t = useT()
   const raw = useValue(store, user ? rutaMateriales(user.uid) : null)
   const materiales = listaDeMateriales(raw)
@@ -278,13 +312,14 @@ function PanelMateriales({ store, user, lista, fondo, onCargar }) {
 
   const guardar = async (comoNuevo) => {
     let id = origen?.id
-    let nombre = origen?.nombre
+    /* El nombre del material es el título de la clase. */
+    let nombre = titulo.trim() || origen?.nombre
     if (comoNuevo || !id) {
       nombre = prompt(t('nombreParaGuardar'), nombre || '')
       if (!nombre || !nombre.trim()) return
       id = idMaterialNuevo()
     }
-    const m = materialParaGuardar({ nombre, idioma: t.idioma, fondo, actividades: lista }, store.stamp())
+    const m = materialParaGuardar({ nombre, objetivo, idioma: t.idioma, fondo, actividades: lista }, store.stamp())
     await store.set(rutaMaterial(user.uid, id), m)
     recordar({ id, nombre: m.nombre })
     setAviso(t('guardadoEn', m.nombre))
@@ -361,7 +396,9 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
   const aid = actividad.id
   const respuestas = useValue(store, aid ? `${base}/respuestas/${aid}` : null)
   const moderacion = useValue(store, aid ? `${base}/moderacion/${aid}` : null)
-  const [moderando, setModerando] = useState(false)
+  /* La moderación proyectada es de la sala, no de esta pestaña: se prende y
+     apaga desde aquí o desde la tablet (Mod.jsx). */
+  const moderando = Boolean(estado.moderando)
   const moderable = ['nube', 'abierta', 'preguntas'].includes(actividad.tipo)
   const n = cuantosRespondieron(respuestas)
   const aprobadasYPendientes = actividad.tipo === 'abierta' ? abiertas(respuestas, moderacion?.abiertas)
@@ -419,7 +456,7 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
             {estado.resultados ? t('ocultarResultados') : t('mostrarResultados')}
           </Button>
           {moderable && (
-            <Button variant="ghost" onClick={() => setModerando(m => !m)} className={moderando ? '!border-teal-600 !text-teal-800' : ''}>
+            <Button variant="ghost" onClick={() => acciones.moderando(!moderando)} className={moderando ? '!border-teal-600 !text-teal-800' : ''}>
               {t('moderar')}{pendientes ? ` · ${pendientes}` : ''}
             </Button>
           )}
@@ -434,13 +471,16 @@ function Presentar({ store, base, pin, idx, actividad, total, estado, participan
       </div>
 
       {moderando && moderable && (
-        <aside className="w-96 shrink-0 border-l border-slate-200 bg-slate-50 p-4 overflow-auto">
+        /* MODERACIÓN PROYECTADA (8-oct-2026): el curso ve llegar las oraciones y
+           cómo se corrigen, para retroalimentar en grupo. Ancha y con letra
+           grande para leerse desde atrás; nunca con nombres. */
+        <aside className="w-[clamp(26rem,40vw,42rem)] shrink-0 border-l border-slate-200 bg-slate-50 p-5 overflow-auto text-xl">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="font-black text-slate-900">{t('moderar')}</h2>
-            <button onClick={() => setModerando(false)} className="text-slate-500 text-sm">{t('cerrar')}</button>
+            <h2 className="text-2xl font-black text-slate-900">{t('moderar')}</h2>
+            <button onClick={() => acciones.moderando(false)} className="text-slate-500 text-base">{t('cerrar')}</button>
           </div>
-          <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 mb-3">
-            {t('avisoModerarPc')}
+          <p className="text-sm text-teal-900 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2 mb-3">
+            {t('moderacionProyectada')}
           </p>
           <Moderacion actividad={actividad} respuestas={respuestas} moderacion={moderacion} participantes={participantes}
             onPalabra={(clave, d) => acciones.moderarPalabra(aid, clave, d)}
