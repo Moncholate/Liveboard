@@ -164,6 +164,16 @@ export async function descargarPdf(resumen) {
         const lados = r.antes || r.ahora ? `${r.antes}${r.antes && r.ahora ? ' -> ' : ''}${r.ahora}: ` : ''
         vineta(`${lados}${t('porque')} ${r.texto}`)
       })
+    } else if (a.tipo === 'crucigrama') {
+      for (const [titulo, dir] of [['horizontales', 'h'], ['verticales', 'v']]) {
+        const items = a.palabras.filter(p => p.dir === dir)
+        if (!items.length) continue
+        parrafo(t(titulo).toUpperCase(), { size: 9, bold: true, color: GRIS, gap: 1 })
+        items.forEach(p => {
+          parrafo(`${p.numero}. ${p.pista || '__________'} (${p.largo})  ->  ${p.original}`, { size: 12, gap: 0.5 })
+          parrafo(t('laSacaron', p.sacaron), { size: 9, color: GRIS, gap: 2 })
+        })
+      }
     } else if (a.tipo === 'apuesta') {
       a.consignas.forEach((c, i) => parrafo(`${i + 1}. ${c}`, { size: 12, gap: 1 }))
       y += 2

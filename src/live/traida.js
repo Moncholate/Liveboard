@@ -1,10 +1,10 @@
 /* ============================================================================
    LO QUE LLEGA DEL UTILITY BELT
    ----------------------------------------------------------------------------
-   Las herramientas de cierre de Teacher's Utility Belt funcionan sin internet:
-   el docente cuenta manos o escribe lo que le dicen. Su botón «Hacer con
-   celulares» abre ESTA app con lo que ya escribió (el objetivo, el molde, las
-   consignas), para que el curso responda desde el celular:
+   Las herramientas de cierre de Teacher's Utility Belt, y su crucigrama,
+   funcionan sin internet. Su botón «Hacer con celulares» abre ESTA app con lo
+   que el docente ya escribió (el objetivo, el molde, las consignas, el
+   crucigrama armado), para que el curso responda desde el celular:
 
      #/host?cargar=<JSON en base64url>      { v: 1, actividad: { tipo, … } }
 
@@ -15,9 +15,9 @@
    La copia de `codificar` vive en el Belt (src/celulares.js): si cambia el
    formato, se cambian las dos y se sube `v`.
 
-   Este archivo es PURO para poder probarlo (traida.test.js).
+   Este archivo es PURO para poder probarlo (cierres.test.js).
    ========================================================================== */
-import { CIERRES, idAlAzar, limpiarActividad, problemaDe } from './logic.js'
+import { DESDE_BELT, idAlAzar, limpiarActividad, problemaDe } from './logic.js'
 
 export const VERSION = 1
 
@@ -45,7 +45,7 @@ export const leerTraida = (hash, azar = Math.random) => {
   if (!cargar) return null
   try {
     const { v, actividad } = decodificar(cargar)
-    if (v !== VERSION || !CIERRES.includes(actividad?.tipo)) return { error: true }
+    if (v !== VERSION || !DESDE_BELT.includes(actividad?.tipo)) return { error: true }
     const limpia = limpiarActividad({ ...actividad, id: idAlAzar(azar) })
     return problemaDe(limpia) ? { error: true } : { actividad: limpia }
   } catch {

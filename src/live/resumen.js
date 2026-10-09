@@ -20,6 +20,7 @@
    ========================================================================== */
 import { abiertas, consignasDe, conteoEncuesta, estadisticaEscala, idAlAzar, nube, preguntasDelCurso, resultadoRanking } from './logic.js'
 import { calibracion, lecturaSemaforo, tarjetasMuro } from './cierres.js'
+import { claveDe, palabrasDe, progreso } from './crucigrama.js'
 import { comoLista } from './sala.js'
 import { fondoPizarraValido } from './pizarra.js'
 import { limpiarObjetivo, limpiarTitulo } from './materiales.js'
@@ -65,6 +66,16 @@ export const resultadoDe = (a, respuestas, moderacion) => {
         ...base, antes: a.antes || '', ahora: a.ahora || '',
         items: aprobadas(respuestas, moderacion).map(r => ({ antes: r.antes || '', ahora: r.ahora || '', texto: r.texto })),
       }
+    case 'crucigrama': {
+      /* Las palabras con su respuesta, y cuántos la sacaron: el PDF es para
+         repasar, así que va resuelto. */
+      const palabras = palabrasDe(a)
+      const { por } = progreso(respuestas, palabras)
+      return {
+        ...base,
+        palabras: palabras.map(p => ({ numero: p.numero, dir: p.dir, pista: p.pista || '', original: p.original, largo: p.palabra.length, sacaron: por[claveDe(p)] || 0 })),
+      }
+    }
     case 'apuesta': {
       const consignas = consignasDe(a)
       const { apostaron, compararon, exactos, deMas, deMenos } = calibracion(respuestas, consignas.length)
@@ -121,6 +132,7 @@ export const tieneAlgo = (r) => {
     case 'duda': case 'muro': return r.textos.length > 0
     case 'antesahora': return r.items.length > 0
     case 'apuesta': return r.apostaron > 0
+    case 'crucigrama': return r.palabras.some(p => p.sacaron > 0)
     default: return false
   }
 }

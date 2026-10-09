@@ -31,7 +31,8 @@
                             respondidas: { qid: true },
                             correccionesPreguntas: { qid: { texto, de } },
                             correccionesNube: { clave escrita: texto },
-                            verCorrecciones: false? } }
+                            verCorrecciones: false?,
+                            destapadas: { numero+dir: true } } }   (crucigrama)
                    (la corrección del docente; `de` = el texto que corrigió,
                    para que caduque sola si el estudiante cambia el suyo.
                    verCorrecciones = false si el curso ve solo la versión
@@ -79,6 +80,11 @@ export const accionesDeSala = (store, pin) => {
     decidirAbierta: (aid, pid, decision) => store.set(`${base}/moderacion/${aid}/abiertas/${pid}`, decision),
     /* Con treinta celulares mandando su logro al muro, aprobar de a uno son
        treinta toques con el curso esperando. */
+    /* Crucigrama: las palabras destapadas en la pantalla. Una vez destapada no
+       se vuelve a tapar, aunque alguien se desconecte y baje la mitad. */
+    destapar: (aid, claves) => (claves.length
+      ? store.update(`${base}/moderacion/${aid}/destapadas`, Object.fromEntries(claves.map(k => [k, true])))
+      : Promise.resolve()),
     aprobarVarias: (aid, pids) => store.update(`${base}/moderacion/${aid}/abiertas`, Object.fromEntries(pids.map(pid => [pid, true]))),
     /* Sin texto, se quita la corrección y vuelve a verse el original. */
     corregirAbierta: (aid, pid, texto, de) => corregirTexto(`${base}/moderacion/${aid}/correcciones/${pid}`, texto, de),

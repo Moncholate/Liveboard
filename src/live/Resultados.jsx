@@ -6,6 +6,7 @@
    ========================================================================== */
 import { ALTERNATIVAS, conteoEncuesta, estadisticaEscala, nube, partirEnHuecos, resultadoRanking, tamanoEnNube } from './logic.js'
 import { CARCASA, CARCASA_INT, LAMPARA, TINTA_LAMPARA, calibracion, formaMuro, lecturaSemaforo, tarjetasMuro } from './cierres.js'
+import { casillasDe, claveDe, palabrasDe, progreso, rejilla, umbral } from './crucigrama.js'
 import { useT } from '../i18n.jsx'
 import { Cambios } from './Cambios.jsx'
 
@@ -351,6 +352,113 @@ export function Apuesta({ consignas, respuestas, fase, chico = false }) {
         {c.compararon > 0 && ` · ${t('promediosApuesta', numero(c.promApuesta), numero(c.promTuve))}`}
       </p>
       {!chico && <p className="text-center text-3xl font-bold text-slate-900">{t('enCualSobro')}</p>}
+    </div>
+  )
+}
+
+/* ── Crucigrama ──────────────────────────────────────────────────────── */
+
+/* LA CUADRÍCULA. `llenas` = casillas con la letra a la vista; `apagadas` =
+   casillas a la vista pero en gris (en el celular: lo que destapó la pantalla,
+   que no es mérito propio). `onNumero(f, c)`: tocar el número destapa las
+   palabras que empiezan ahí (solo en el proyector). */
+export function Grilla({ ancho, alto, palabras, llenas, apagadas = new Set(), lado, onNumero }) {
+  const { celdas, numeros } = rejilla(ancho, alto, palabras)
+  return (
+    <div aria-hidden="true" className="grid w-max" style={{ gridTemplateColumns: `repeat(${ancho}, ${lado})` }}>
+      {celdas.map((fila, f) => fila.map((letra, c) => {
+        const num = letra ? numeros[`${f},${c}`] : null
+        const k = `${f},${c}`
+        const ver = llenas.has(k) || apagadas.has(k)
+        const Casilla = num && onNumero ? 'button' : 'div'
+        return (
+          <Casilla key={k} {...(Casilla === 'button' ? { type: 'button', tabIndex: -1, onClick: () => onNumero(f, c) } : {})}
+            className={letra ? 'relative bg-white border border-slate-400' : ''} style={{ width: lado, height: lado, padding: 0 }}>
+            {num && (
+              <span className="absolute top-0 left-0.5 font-bold leading-none tabular-nums text-slate-500"
+                style={{ fontSize: `max(9px, calc(${lado} * 0.3))` }}>{num}</span>
+            )}
+            {letra && ver && (
+              <span className={`absolute inset-0 grid place-items-center font-bold ${llenas.has(k) ? 'text-slate-900' : 'text-slate-400'}`}
+                style={{ fontSize: `calc(${lado} * 0.55)` }}>{letra}</span>
+            )}
+          </Casilla>
+        )
+      }))}
+    </div>
+  )
+}
+
+/* EL CRUCIGRAMA DEL CURSO, en el proyector. Bajo cada pista, cuántos la
+   tienen y nunca quiénes; una palabra se destapa según la regla de la
+   actividad (crucigrama.js), y el docente puede destapar a mano tocando la
+   pista o su número. `chico` (celular del docente): solo las pistas. */
+export function Crucigrama({ actividad, respuestas, destapadas, conectados, onDestapar, chico = false }) {
+  const t = useT()
+  const palabras = palabrasDe(actividad)
+  const { por, terminaron } = progreso(respuestas, palabras)
+  const de = Math.max(conectados || 0, Object.keys(respuestas || {}).length)
+  const llenas = new Set(palabras.filter(p => destapadas?.[claveDe(p)] === true).flatMap(casillasDe))
+  const modo = actividad.destapar || 'mitad'
+  const lado = `max(22px, min(calc(46vw / ${actividad.ancho}), calc(56vh / ${actividad.alto}), 3.75rem))`
+  const destaparEn = (f, c) => onDestapar?.(palabras.filter(p => p.fila === f && p.col === c).map(claveDe))
+
+  const lista = (titulo, items) => items.length > 0 && (
+    <div className="min-w-0">
+      <h3 className={`font-bold uppercase tracking-wider text-slate-500 ${chico ? 'text-xs mb-1' : 'text-base mb-2'}`}>{titulo}</h3>
+      <ol className={`flex flex-col ${chico ? 'gap-1.5' : 'gap-2'}`}>
+        {items.map(p => {
+          const k = claveDe(p)
+          const visible = destapadas?.[k] === true
+          const n = por[k] || 0
+          return (
+            <li key={k}>
+              <button type="button" disabled={!onDestapar || visible} onClick={() => onDestapar([k])}
+                className={`w-full text-left rounded-lg px-1.5 -mx-1.5 py-0.5 ${onDestapar && !visible ? 'hover:bg-slate-100' : ''}`}>
+                <span className={`flex gap-2 text-slate-800 ${chico ? 'text-sm' : 'text-xl'}`}>
+                  <b className="tabular-nums shrink-0">{p.numero}.</b>
+                  <span className="min-w-0 flex-1">
+                    {p.pista || <span className="text-slate-400">__________</span>}
+                    <span className="ml-1.5 tabular-nums text-slate-500">({p.palabra.length})</span>
+                    {visible && <b className="ml-2 text-teal-700">→ {p.original}</b>}
+                  </span>
+                </span>
+                <span className="flex items-center gap-2 mt-0.5 pl-7">
+                  <span className="flex-1 max-w-[12rem] h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <span className="block h-full rounded-full bg-teal-600 transition-all duration-500" style={{ width: `${de ? Math.min(100, (n / de) * 100) : 0}%` }} />
+                  </span>
+                  <span className={`tabular-nums text-slate-500 ${chico ? 'text-xs' : 'text-sm'}`}>{t('laTienen', n, de)}</span>
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
+
+  const pie = (
+    <p className={`text-slate-500 ${chico ? 'text-xs' : 'text-lg'}`}>
+      {t(`regla_${modo}`, umbral(modo, conectados))} · {t('terminaronN', terminaron)}
+    </p>
+  )
+  const listas = (
+    <div className={`min-w-0 flex-1 flex flex-col ${chico ? 'gap-3' : 'gap-5'}`}>
+      {lista(t('horizontales'), palabras.filter(p => p.dir === 'h'))}
+      {lista(t('verticales'), palabras.filter(p => p.dir === 'v'))}
+    </div>
+  )
+  if (chico) return <div className="flex flex-col gap-3">{pie}{listas}</div>
+  return (
+    <div className="w-full flex flex-col gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-start gap-8">
+        <div className="overflow-x-auto shrink-0 mx-auto lg:mx-0">
+          <Grilla ancho={actividad.ancho} alto={actividad.alto} palabras={palabras} llenas={llenas} lado={lado}
+            onNumero={onDestapar ? destaparEn : undefined} />
+        </div>
+        {listas}
+      </div>
+      {pie}
     </div>
   )
 }

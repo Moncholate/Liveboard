@@ -18,7 +18,7 @@ describe('textos en español e inglés', () => {
       expect(TEXTOS[`tipo_${tipo}`], tipo).toBeDefined()
       expect(TEXTOS[`ayuda_${tipo}`], tipo).toBeDefined()
     }
-    for (const p of ['prob_sinTipo', 'prob_sinPregunta', 'prob_pocasAlternativas', 'prob_pocosElementos', 'prob_sinMolde', 'prob_sinConsignas']) expect(TEXTOS[p], p).toBeDefined()
+    for (const p of ['prob_sinTipo', 'prob_sinPregunta', 'prob_pocasAlternativas', 'prob_pocosElementos', 'prob_sinMolde', 'prob_sinConsignas', 'prob_sinCrucigrama']) expect(TEXTOS[p], p).toBeDefined()
   })
 
   it('traduce, con datos, y una clave desconocida se ve tal cual', () => {

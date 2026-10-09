@@ -10,6 +10,7 @@ import {
   ALTERNATIVAS, BASICOS, CIERRES, LIMITES, actividadNueva, conAlternativas, preguntaOpcional, problemaDe, rangoAlternativas,
 } from '../live/logic.js'
 import { Button } from '../ui.jsx'
+import { MODOS, palabrasDe } from '../live/crucigrama.js'
 
 export function Editor({ lista, setLista, onMostrar }) {
   const t = useT()
@@ -95,6 +96,24 @@ function Tarjeta({ a, i, total, onCambiar, onQuitar, onMover, onMostrar }) {
           <textarea value={(a.consignas || []).join('\n')} rows={5} placeholder={t('consignasEj')} aria-label={t('consignas')}
             onChange={(e) => onCambiar({ consignas: e.target.value.split('\n').slice(0, LIMITES.maxConsignas) })} className={`${campo} resize-y`} />
           <p className="text-xs text-slate-500">{t('consignas')} · {t('consignasReparte')}</p>
+        </>
+      )}
+      {a.tipo === 'crucigrama' && (
+        <>
+          {/* Las palabras no se editan aquí: el crucigrama llega armado del
+              Belt, y moverle una letra lo rompería. Sí se elige cuándo se
+              destapa cada palabra en la pantalla. */}
+          <p className="text-sm text-slate-700">
+            {palabrasDe(a).map(p => p.original).join(' · ')}
+          </p>
+          <p className="text-xs text-slate-500">{t('crucigramaDelBelt', palabrasDe(a).length)}</p>
+          <label className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+            <span className="font-semibold">{t('destaparCuando')}</span>
+            <select value={a.destapar || 'mitad'} onChange={(e) => onCambiar({ destapar: e.target.value })}
+              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5">
+              {MODOS.map(m => <option key={m} value={m}>{t(`destapar_${m}`)}</option>)}
+            </select>
+          </label>
         </>
       )}
       <div className="flex items-center gap-3">

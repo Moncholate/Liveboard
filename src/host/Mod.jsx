@@ -17,7 +17,8 @@ import { faseApuesta } from '../live/cierres.js'
 import { ProveedorIdioma, traducir, useT, valido } from '../i18n.jsx'
 import { accionesDeSala, comoLista, conectados, raiz } from '../live/sala.js'
 import { Moderacion } from '../live/Moderacion.jsx'
-import { Apuesta, Encuesta, Escala, Nube, Ranking, Semaforo, TextoConHuecos } from '../live/Resultados.jsx'
+import { claveDe, palabrasDe } from '../live/crucigrama.js'
+import { Apuesta, Crucigrama, Encuesta, Escala, Nube, Ranking, Semaforo, TextoConHuecos } from '../live/Resultados.jsx'
 import { FasesApuesta } from './Host.jsx'
 import { useTema } from '../tema.jsx'
 
@@ -72,7 +73,7 @@ function Panel({ store, pin, clave }) {
             ))}
           </div>
         ) : (
-          <EnVivo store={store} base={base} idx={idx} actividades={actividades} actividad={actividad}
+          <EnVivo store={store} base={base} idx={idx} actividades={actividades} actividad={actividad} enSala={conectados(online)}
             estado={estado} participantes={participantes} acciones={acciones} />
         )}
       </main>
@@ -80,7 +81,7 @@ function Panel({ store, pin, clave }) {
   )
 }
 
-function EnVivo({ store, base, idx, actividades, actividad, estado, participantes, acciones }) {
+function EnVivo({ store, base, idx, actividades, actividad, enSala, estado, participantes, acciones }) {
   const t = useT()
   const total = actividades.length
   const ir = (i) => acciones.mostrar(i, actividades[i]?.tipo)
@@ -108,6 +109,8 @@ function EnVivo({ store, base, idx, actividades, actividad, estado, participante
         </Button>
         {apuesta ? (
           <div className="flex gap-2"><FasesApuesta fase={faseApuesta(estado)} acciones={acciones} className="flex-1 !px-2 !py-2 text-sm" /></div>
+        ) : actividad.tipo === 'crucigrama' ? (
+          <Button variant="ghost" className="!py-2 text-sm" onClick={() => acciones.destapar(aid, palabrasDe(actividad).map(claveDe))}>{t('destaparTodas')}</Button>
         ) : (
           <Button variant="ghost" className="!py-2 text-sm" onClick={() => acciones.resultados(!estado.resultados)}>
             {estado.resultados ? t('ocultarResultados') : t('mostrarResultados')}
@@ -142,6 +145,8 @@ function EnVivo({ store, base, idx, actividades, actividad, estado, participante
           {actividad.tipo === 'encuesta' ? <Encuesta actividad={actividad} respuestas={respuestas} chico />
             : actividad.tipo === 'ranking' ? <Ranking actividad={actividad} respuestas={respuestas} chico />
             : actividad.tipo === 'semaforo' ? <Semaforo respuestas={respuestas} chico />
+            : actividad.tipo === 'crucigrama' ? <Crucigrama actividad={actividad} respuestas={respuestas} destapadas={moderacion?.destapadas} conectados={enSala}
+                onDestapar={(claves) => acciones.destapar(aid, claves)} chico />
             : apuesta ? <Apuesta consignas={consignasDe(actividad)} respuestas={respuestas} fase={faseApuesta(estado)} chico />
             : <Escala respuestas={respuestas} chico />}
         </section>

@@ -48,6 +48,13 @@ export const TEXTOS = {
   tipo_apuesta: { es: 'Apuesta', en: 'The bet' },
   tipo_antesahora: { es: 'Antes / Ahora', en: 'Then / Now' },
   tipo_muro: { es: 'El muro', en: 'The wall' },
+  tipo_crucigrama: { es: 'Crucigrama', en: 'Crossword' },
+  ayuda_crucigrama: { es: 'Se arma en el Utility Belt. Cada uno lo resuelve en su celular, y en la pantalla una palabra se destapa cuando la tiene la mitad del curso.', en: 'It is built in the Utility Belt. Everyone solves it on their phone, and on the screen a word is revealed once half the class has it.' },
+  crucigramaDelBelt: { es: (n) => `${n} palabras, armado en el Utility Belt. Para cambiarlas, ármalo allá otra vez.`, en: (n) => `${n} words, built in the Utility Belt. To change them, build it there again.` },
+  destaparCuando: { es: 'Cada palabra se destapa en la pantalla…', en: 'Each word is revealed on the screen…' },
+  destapar_mitad: { es: 'cuando la tiene la mitad del curso', en: 'once half the class has it' },
+  destapar_uno: { es: 'cuando alguien la saca', en: 'as soon as someone gets it' },
+  destapar_docente: { es: 'cuando tú la destapes', en: 'when you reveal it' },
   ayuda_semaforo: { es: 'Escribe el objetivo de hoy. Cada uno elige su nivel en el celular, y el semáforo se ve cuando muestras los resultados.', en: 'Write today’s objective. Everyone chooses their level on the phone, and the traffic light shows when you show the results.' },
   ayuda_duda: { es: 'Un molde con huecos (______) que cada uno completa con lo que le quedó a medias. Solo se proyectan las que apruebas.', en: 'A frame with blanks (______) that everyone completes with what is still unclear. Only the ones you approve are shown.' },
   ayuda_apuesta: { es: 'Escriben las consignas en el cuaderno, apuestan cuántas tienen bien y recién entonces corrigen. Se ve cuántos acertaron su apuesta, sin nombres.', en: 'They write the prompts in their notebooks, bet how many are right, and only then check. It shows how many got their bet right, with no names.' },
@@ -75,6 +82,7 @@ export const TEXTOS = {
   prob_pocosElementos: { es: 'El ranking necesita al menos 3 elementos.', en: 'The ranking needs at least 3 items.' },
   prob_sinMolde: { es: 'El molde necesita palabras, no solo huecos.', en: 'The frame needs words, not just blanks.' },
   prob_sinConsignas: { es: 'Falta al menos una consigna.', en: 'Add at least one prompt.' },
+  prob_sinCrucigrama: { es: 'El crucigrama necesita al menos 2 palabras. Ármalo en el Utility Belt.', en: 'The crossword needs at least 2 words. Build it in the Utility Belt.' },
 
   // Proyector · preparar
   creandoSala: { es: 'Creando la sala…', en: 'Creating the room…' },
@@ -163,6 +171,16 @@ export const TEXTOS = {
   ahoraCorrijan: { es: 'Ahora corrijan', en: 'Now check' },
   volverAEscribir: { es: '← Volver a escribir', en: '← Back to writing' },
   volverAApostar: { es: '← Volver a apostar', en: '← Back to betting' },
+  horizontales: { es: 'Horizontales', en: 'Across' },
+  verticales: { es: 'Verticales', en: 'Down' },
+  letrasN: { es: (n) => `${n} letras`, en: (n) => `${n} letters` },
+  laTienen: { es: (n, de) => `${n} de ${de}`, en: (n, de) => `${n} of ${de}` },
+  regla_mitad: { es: (m) => `Una palabra se destapa cuando la tiene la mitad del curso: ${m}.`, en: (m) => `A word is revealed once half the class has it: ${m}.` },
+  regla_uno: { es: () => 'Una palabra se destapa cuando alguien la saca.', en: () => 'A word is revealed as soon as someone gets it.' },
+  regla_docente: { es: () => 'Toca una pista o su número para destaparla.', en: () => 'Tap a clue or its number to reveal it.' },
+  terminaronN: { es: (n) => `${n} ${n === 1 ? 'terminó' : 'terminaron'}`, en: (n) => `${n} finished` },
+  destaparTodas: { es: 'Destapar todas', en: 'Reveal all' },
+  laSacaron: { es: (n) => `${n} la ${n === 1 ? 'sacó' : 'sacaron'}`, en: (n) => `${n} got it` },
 
   // Moderación
   corregir: { es: 'Corregir', en: 'Correct' },
@@ -312,6 +330,13 @@ export const TEXTOS = {
   mi_exacto: { es: 'Te conoces bien: acertaste tu apuesta.', en: 'You know yourself well: your bet was right.' },
   mi_deMas: { es: (d) => `Te sobró confianza en ${d}. ¿En cuál?`, en: (d) => `You were overconfident by ${d}. Which one?` },
   mi_deMenos: { es: (d) => `Sabías más de lo que creías: ${d} más.`, en: (d) => `You knew more than you thought: ${d} more.` },
+  llevas: { es: (n, de) => `Llevas ${n} de ${de}`, en: (n, de) => `You have ${n} of ${de}` },
+  noEsEsa: { es: 'Todavía no. Prueba otra vez.', en: 'Not yet. Try again.' },
+  destapadaEnPantalla: { es: 'Destapada en la pantalla', en: 'Revealed on the screen' },
+  terminaste: { es: '¡Terminaste!', en: 'You finished!' },
+  ayudaAAlguien: { es: 'Ahora ayuda a alguien: explícale una pista, sin decirle la palabra.', en: 'Now help someone: explain a clue without saying the word.' },
+  pistaEnVozAlta: { es: 'Tu profe la dice en voz alta', en: 'Your teacher says it aloud' },
+  escribeLaPalabra: { es: (n) => `Palabra ${n}`, en: (n) => `Word ${n}` },
 
   // Cuenta y materiales
   iniciarSesion: { es: 'Iniciar sesión con Google', en: 'Sign in with Google' },

@@ -21,7 +21,8 @@ import {
   partirEnHuecos, preguntasDelCurso, tituloDe,
 } from '../live/logic.js'
 import { LAMPARA, NIVELES, faseApuesta, largoHueco, miCalibracion, moldeCompleto, textoDeMolde } from '../live/cierres.js'
-import { Consignas, TextoConHuecos } from '../live/Resultados.jsx'
+import { Consignas, Grilla, TextoConHuecos } from '../live/Resultados.jsx'
+import { acierta, casillasDe, claveDe, palabrasDe as palabrasCrucigrama, soloLetras } from '../live/crucigrama.js'
 import { Cambios } from '../live/Cambios.jsx'
 import { BotonPdf, normalizar } from './Clase.jsx'
 import { rutaResumen, urlResumen } from '../live/resumen.js'
@@ -150,6 +151,7 @@ function Espera() {
 
 function Responder({ store, base, pid, actividad, abierta, fase }) {
   if (actividad.tipo === 'preguntas') return <PreguntarYVotar store={store} base={base} pid={pid} actividad={actividad} abierta={abierta} />
+  if (actividad.tipo === 'crucigrama') return <ResponderCrucigrama store={store} base={base} pid={pid} actividad={actividad} abierta={abierta} />
   if (actividad.tipo === 'apuesta') return <ResponderApuesta store={store} base={base} pid={pid} actividad={actividad} abierta={abierta} fase={fase} />
   return <ResponderUna store={store} base={base} pid={pid} actividad={actividad} abierta={abierta} />
 }
@@ -483,6 +485,105 @@ function ResponderApuesta({ store, base, pid, actividad, abierta, fase }) {
     <div className="flex-1 flex flex-col gap-4">
       <h1 className="text-2xl font-black text-slate-900 leading-snug">{tituloDe(actividad, t)}</h1>
       {cuerpo}
+    </div>
+  )
+}
+
+/* CRUCIGRAMA: cada uno resuelve el suyo. Arriba, su cuadrícula, que se llena
+   con lo que acierta: las letras de una palabra ayudan con la que la cruza, que
+   es la gracia del crucigrama. Lo que destapó la pantalla se ve en gris y no
+   cuenta como suyo. Se comprueba al completar las letras (o con Enter), aquí
+   mismo, y solo se guardan las acertadas. */
+function ResponderCrucigrama({ store, base, pid, actividad, abierta }) {
+  const t = useT()
+  const ruta = `${base}/respuestas/${actividad.id}/${pid}`
+  const mia = useValue(store, ruta)
+  const destapadas = useValue(store, `${base}/moderacion/${actividad.id}/destapadas`)
+  const [textos, setTextos] = useState({})
+  const [fallos, setFallos] = useState({})
+  if (mia === undefined) return <Center>{t('cargando')}</Center>
+  const palabras = palabrasCrucigrama(actividad)
+  const bien = mia?.bien || {}
+  const cuantas = palabras.filter(p => bien[claveDe(p)] === true).length
+  const termino = palabras.length > 0 && cuantas === palabras.length
+
+  const comprobar = async (p, valor) => {
+    const k = claveDe(p)
+    if (acierta(valor, p)) {
+      setFallos(f => ({ ...f, [k]: false }))
+      /* Solo esa palabra, no el mapa entero: dos aciertos seguidos no se pisan. */
+      await store.update(ruta, { [`bien/${k}`]: true, at: store.stamp() })
+    } else {
+      setFallos(f => ({ ...f, [k]: true }))
+    }
+  }
+  const escribir = (p, valor) => {
+    const k = claveDe(p)
+    setTextos(x => ({ ...x, [k]: valor }))
+    setFallos(f => ({ ...f, [k]: false }))
+    if (soloLetras(valor).length === p.palabra.length) comprobar(p, valor)
+  }
+
+  const propias = new Set(palabras.filter(p => bien[claveDe(p)] === true).flatMap(casillasDe))
+  const dePantalla = new Set(palabras.filter(p => destapadas?.[claveDe(p)] === true && bien[claveDe(p)] !== true).flatMap(casillasDe))
+  const lado = `max(14px, min(calc((100vw - 2.5rem) / ${actividad.ancho}), 2rem))`
+
+  const fila = (p) => {
+    const k = claveDe(p)
+    const mio = bien[k] === true
+    const destapada = !mio && destapadas?.[k] === true
+    return (
+      <li key={k} className="rounded-2xl bg-white border border-slate-200 p-3 flex flex-col gap-2">
+        <p className="text-slate-800">
+          <b className="tabular-nums">{p.numero}. </b>
+          {p.pista || <span className="text-slate-500">{t('pistaEnVozAlta')}</span>}
+          <span className="ml-1.5 text-slate-500 tabular-nums">({p.palabra.length})</span>
+        </p>
+        {mio ? (
+          <p className="rounded-xl bg-teal-700 text-white px-3 py-2 text-lg font-black tracking-wider">✓ {p.palabra}</p>
+        ) : destapada ? (
+          <p className="rounded-xl bg-slate-100 px-3 py-2 text-slate-600">
+            <b className="tracking-wider">{p.palabra}</b> · <span className="text-sm">{t('destapadaEnPantalla')}</span>
+          </p>
+        ) : (
+          <>
+            <input value={textos[k] || ''} disabled={!abierta} maxLength={p.palabra.length + 6} autoCapitalize="characters" autoComplete="off" spellCheck={false}
+              aria-label={t('escribeLaPalabra', p.numero)} placeholder={'_ '.repeat(p.palabra.length).trim()}
+              onChange={(e) => escribir(p, e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') comprobar(p, textos[k] || '') }}
+              className={`rounded-xl border-2 px-3 py-2 text-lg font-bold uppercase tracking-wider outline-none disabled:bg-slate-100 ${fallos[k] ? 'border-amber-200 bg-amber-50' : 'border-slate-200 focus:border-teal-600'}`} />
+            {fallos[k] && <p className="text-sm font-semibold text-amber-900">{t('noEsEsa')}</p>}
+          </>
+        )}
+      </li>
+    )
+  }
+
+  return (
+    <div className="flex-1 flex flex-col gap-4">
+      <div className="flex items-baseline gap-3">
+        <h1 className="flex-1 text-2xl font-black text-slate-900 leading-snug">{tituloDe(actividad, t)}</h1>
+        <span className="text-sm font-bold text-teal-800 tabular-nums">{t('llevas', cuantas, palabras.length)}</span>
+      </div>
+      {termino && (
+        <div className="rounded-2xl bg-teal-700 text-white p-4 text-center">
+          <p className="text-2xl font-black">{t('terminaste')}</p>
+          <p className="mt-1 text-teal-50">{t('ayudaAAlguien')}</p>
+        </div>
+      )}
+      <div className="overflow-x-auto self-center">
+        <Grilla ancho={actividad.ancho} alto={actividad.alto} palabras={palabras} llenas={propias} apagadas={dePantalla} lado={lado} />
+      </div>
+      {!abierta && <p className="rounded-2xl bg-slate-100 p-4 text-center font-semibold text-slate-600">{t('respuestasCerradas')}</p>}
+      {[['horizontales', 'h'], ['verticales', 'v']].map(([titulo, dir]) => {
+        const items = palabras.filter(p => p.dir === dir)
+        return items.length > 0 && (
+          <section key={dir} className="flex flex-col gap-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">{t(titulo)}</h2>
+            <ol className="flex flex-col gap-2">{items.map(fila)}</ol>
+          </section>
+        )
+      })}
     </div>
   )
 }

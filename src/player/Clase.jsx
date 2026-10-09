@@ -159,6 +159,24 @@ function Actividad({ a, n }) {
         ))}
       </>
     )
+  } else if (a.tipo === 'crucigrama') {
+    cuerpo = [['horizontales', 'h'], ['verticales', 'v']].map(([titulo, dir]) => {
+      const items = a.palabras.filter(p => p.dir === dir)
+      return items.length > 0 && (
+        <div key={dir}>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">{t(titulo)}</p>
+          <ol className="flex flex-col gap-1">
+            {items.map(p => (
+              <li key={p.numero + p.dir} className="text-slate-800">
+                <b>{p.numero}.</b> {p.pista || '__________'} <span className="text-slate-500">({p.largo})</span>
+                <b className="ml-2 text-teal-800">→ {p.original}</b>
+                <span className="ml-2 text-xs text-slate-500">{t('laSacaron', p.sacaron)}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )
+    })
   } else if (a.tipo === 'apuesta') {
     cuerpo = (
       <>

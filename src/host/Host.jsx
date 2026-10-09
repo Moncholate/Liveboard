@@ -31,9 +31,10 @@ import {
   LARGO_OBJETIVO, LARGO_TITULO, actividadesParaSala, idMaterialNuevo, listaDeMateriales, materialParaGuardar, rutaMaterial, rutaMateriales,
 } from '../live/materiales.js'
 import {
-  Abiertas, Apuesta, Encuesta, Escala, MarcoAntesAhora, Muro, Nube, Preguntas, Ranking, Semaforo, TextoConHuecos,
+  Abiertas, Apuesta, Crucigrama, Encuesta, Escala, MarcoAntesAhora, Muro, Nube, Preguntas, Ranking, Semaforo, TextoConHuecos,
 } from '../live/Resultados.jsx'
 import { faseApuesta } from '../live/cierres.js'
+import { claveDe, palabrasDe, porDestapar, progreso, umbral } from '../live/crucigrama.js'
 import { leerTraida } from '../live/traida.js'
 import { Moderacion } from '../live/Moderacion.jsx'
 import { Editor } from './Editor.jsx'
@@ -194,7 +195,7 @@ function Sala({ store, pin, esperando, traidaRota, onCerrada }) {
         {estado?.pizarra
           ? <PizarraProyector store={store} pin={pin} acciones={acciones} />
           : actual
-          ? <Presentar store={store} base={base} pin={pin} idx={idx} actividad={actual} actividades={actividades}
+          ? <Presentar store={store} base={base} pin={pin} idx={idx} actividad={actual} actividades={actividades} online={online}
               estado={estado} participantes={participantes} acciones={acciones} fondo={fondo} />
           : <Preparar store={store} user={user} pin={pin} online={online} actividades={actividades} acciones={acciones} clase={clase}
               fondo={fondo} setFondo={setFondo} esperando={espera} traidaRota={traidaRota} />}
@@ -434,7 +435,7 @@ function Unirse({ pin, online }) {
 
 /* ── Presentar ───────────────────────────────────────────────────────────── */
 
-function Presentar({ store, base, pin, idx, actividad, actividades, estado, participantes, acciones, fondo }) {
+function Presentar({ store, base, pin, idx, actividad, actividades, online, estado, participantes, acciones, fondo }) {
   const t = useT()
   const total = actividades.length
   const aid = actividad.id
@@ -446,7 +447,19 @@ function Presentar({ store, base, pin, idx, actividad, actividades, estado, part
   const moderable = esModerable(actividad.tipo)
   const apuesta = actividad.tipo === 'apuesta'
   const fase = faseApuesta(estado)
+  const cruci = actividad.tipo === 'crucigrama'
+  const enSala = conectados(online)
   const ir = (i) => acciones.mostrar(i, actividades[i]?.tipo)
+
+  /* CRUCIGRAMA: cuando una palabra llega al umbral (la mitad de los
+     conectados, por defecto), este proyector la anota como destapada. Queda
+     anotada: si después se desconecta alguien, no se vuelve a tapar. */
+  useEffect(() => {
+    if (!cruci || respuestas === undefined || moderacion === undefined) return
+    const palabras = palabrasDe(actividad)
+    const nuevas = porDestapar(palabras, progreso(respuestas, palabras).por, umbral(actividad.destapar, enSala), moderacion?.destapadas)
+    if (nuevas.length) acciones.destapar(aid, nuevas)
+  }, [cruci, respuestas, moderacion, enSala])
   const n = cuantosRespondieron(respuestas)
   const aprobadasYPendientes = conTexto(actividad.tipo) ? abiertas(respuestas, moderacion?.abiertas)
     : actividad.tipo === 'preguntas' ? preguntasDelCurso(respuestas, moderacion)
@@ -474,14 +487,20 @@ function Presentar({ store, base, pin, idx, actividad, actividades, estado, part
             <span className="flex-1" />
             <JoinCorner pin={pin} />
           </div>
-          <h1 className="px-8 pt-2 text-5xl font-black text-slate-900 leading-tight"><TextoConHuecos texto={tituloDe(actividad, t)} /></h1>
+          <h1 className={`px-8 pt-2 font-black text-slate-900 leading-tight ${cruci ? 'text-3xl' : 'text-5xl'}`}><TextoConHuecos texto={tituloDe(actividad, t)} /></h1>
           {actividad.tipo === 'antesahora' && (actividad.antes || actividad.ahora) && (
             <div className="px-8 pt-4"><MarcoAntesAhora antes={actividad.antes} ahora={actividad.ahora} /></div>
           )}
         </div>
 
         <div className={`flex-1 flex items-center justify-center min-h-0 overflow-auto ${conFondo ? 'px-3 py-2' : 'px-8 py-8'}`}>
-          {apuesta ? (
+          {cruci ? (
+            /* El crucigrama se ve siempre: lo que se tapa son las palabras. */
+            <div className={conFondo ? `${panel} p-8 w-full` : 'w-full'}>
+              <Crucigrama actividad={actividad} respuestas={respuestas} destapadas={moderacion?.destapadas} conectados={enSala}
+                onDestapar={(claves) => acciones.destapar(aid, claves)} />
+            </div>
+          ) : apuesta ? (
             /* La apuesta va por fases, no por «mostrar resultados». */
             <div className={conFondo ? `${panel} p-8 w-full max-w-6xl` : 'w-full'}>
               <Apuesta consignas={consignasDe(actividad)} respuestas={respuestas} fase={fase} />
@@ -510,7 +529,9 @@ function Presentar({ store, base, pin, idx, actividad, actividades, estado, part
           </Button>
           {apuesta
             ? <FasesApuesta fase={fase} acciones={acciones} />
-            : (
+            : cruci ? (
+              <Button variant="ghost" onClick={() => acciones.destapar(aid, palabrasDe(actividad).map(claveDe))}>{t('destaparTodas')}</Button>
+            ) : (
               <Button variant="ghost" onClick={() => acciones.resultados(!estado.resultados)}>
                 {estado.resultados ? t('ocultarResultados') : t('mostrarResultados')}
               </Button>
