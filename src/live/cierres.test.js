@@ -178,7 +178,7 @@ describe('el resumen de la clase con cierres', () => {
   })
 })
 
-describe('lo que llega del Utility Belt', () => {
+describe('lo que llega del Toolbox', () => {
   const enlace = (obj) => `#/host?cargar=${codificar(obj)}`
 
   it('codifica y decodifica con tildes y comillas', () => {

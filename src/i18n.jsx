@@ -42,7 +42,7 @@ export const TEXTOS = {
   ayuda_preguntas: { es: 'Los estudiantes te hacen preguntas sin su nombre y votan las de otros. Solo se proyectan las que apruebas.', en: 'Students ask you questions without their names and vote for others’ questions. Only the ones you approve are shown.' },
   escala: { es: ['Nada', 'Poco', 'Más o menos', 'Bastante', 'Mucho'], en: ['Not at all', 'A little', 'Somewhat', 'Quite', 'Very much'] },
 
-  // Cierres (las herramientas de cierre del Utility Belt, con celulares)
+  // Cierres (las herramientas de cierre del Toolbox, con celulares)
   tipo_semaforo: { es: 'Semáforo', en: 'Traffic light' },
   tipo_duda: { es: 'La duda', en: 'The doubt' },
   tipo_apuesta: { es: 'Apuesta', en: 'The bet' },
@@ -50,9 +50,9 @@ export const TEXTOS = {
   tipo_muro: { es: 'El muro', en: 'The wall' },
   tipo_crucigrama: { es: 'Crucigrama', en: 'Crossword' },
   tipo_sopa: { es: 'Sopa de letras', en: 'Word search' },
-  ayuda_sopa: { es: 'Se arma en el Utility Belt. Cada uno la resuelve en su celular, y en la pantalla una palabra aparece marcada cuando la encontró la mitad del curso.', en: 'It is built in the Utility Belt. Everyone solves it on their phone, and on the screen a word gets marked once half the class has found it.' },
-  ayuda_crucigrama: { es: 'Se arma en el Utility Belt. Cada uno lo resuelve en su celular, y en la pantalla una palabra se destapa cuando la tiene la mitad del curso.', en: 'It is built in the Utility Belt. Everyone solves it on their phone, and on the screen a word is revealed once half the class has it.' },
-  crucigramaDelBelt: { es: (n) => `${n} palabras, armadas en el Utility Belt. Para cambiarlas, vuelve a armarlo allá.`, en: (n) => `${n} words, built in the Utility Belt. To change them, build it there again.` },
+  ayuda_sopa: { es: 'Se arma en el Toolbox. Cada uno la resuelve en su celular, y en la pantalla una palabra aparece marcada cuando la encontró la mitad del curso.', en: 'It is built in the Toolbox. Everyone solves it on their phone, and on the screen a word gets marked once half the class has found it.' },
+  ayuda_crucigrama: { es: 'Se arma en el Toolbox. Cada uno lo resuelve en su celular, y en la pantalla una palabra se destapa cuando la tiene la mitad del curso.', en: 'It is built in the Toolbox. Everyone solves it on their phone, and on the screen a word is revealed once half the class has it.' },
+  crucigramaDelBelt: { es: (n) => `${n} palabras, armadas en el Toolbox. Para cambiarlas, vuelve a armarlo allá.`, en: (n) => `${n} words, built in the Toolbox. To change them, build it there again.` },
   destaparCuando: { es: 'Cada palabra aparece en la pantalla…', en: 'Each word appears on the screen…' },
   destapar_mitad: { es: 'cuando la tiene la mitad del curso', en: 'once half the class has it' },
   destapar_uno: { es: 'apenas alguien la tiene', en: 'as soon as someone has it' },
@@ -84,8 +84,8 @@ export const TEXTOS = {
   prob_pocosElementos: { es: 'El ranking necesita al menos 3 elementos.', en: 'The ranking needs at least 3 items.' },
   prob_sinMolde: { es: 'El molde necesita palabras, no solo huecos.', en: 'The frame needs words, not just blanks.' },
   prob_sinConsignas: { es: 'Falta al menos una consigna.', en: 'Add at least one prompt.' },
-  prob_sinCrucigrama: { es: 'El crucigrama necesita al menos 2 palabras. Ármalo en el Utility Belt.', en: 'The crossword needs at least 2 words. Build it in the Utility Belt.' },
-  prob_sinSopa: { es: 'La sopa no trae palabras. Ármala en el Utility Belt.', en: 'The word search has no words. Build it in the Utility Belt.' },
+  prob_sinCrucigrama: { es: 'El crucigrama necesita al menos 2 palabras. Ármalo en el Toolbox.', en: 'The crossword needs at least 2 words. Build it in the Toolbox.' },
+  prob_sinSopa: { es: 'La sopa no trae palabras. Ármala en el Toolbox.', en: 'The word search has no words. Build it in the Toolbox.' },
 
   // Proyector · preparar
   creandoSala: { es: 'Creando la sala…', en: 'Creating the room…' },
@@ -394,10 +394,10 @@ export const TEXTOS = {
   guardadoEn: { es: (n) => `Guardado en «${n}».`, en: (n) => `Saved to “${n}”.` },
   abrirSalaCon: { es: 'Abrir una sala', en: 'Open a room' },
 
-  // Lo que llega del Utility Belt
-  traidaDelBelt: { es: (tipo) => `Llegó del Utility Belt: «${tipo}». Cuando el curso haya entrado, muéstrala.`, en: (tipo) => `Arrived from the Utility Belt: “${tipo}”. Once the class has joined, show it.` },
+  // Lo que llega del Toolbox
+  traidaDelBelt: { es: (tipo) => `Llegó del Toolbox: «${tipo}». Cuando el curso haya entrado, muéstrala.`, en: (tipo) => `Arrived from the Toolbox: “${tipo}”. Once the class has joined, show it.` },
   mostrarAhora: { es: 'Mostrar ahora', en: 'Show it now' },
-  traidaInvalida: { es: 'No se pudo leer lo que llegó del Utility Belt. Vuelve a tocar «Hacer con celulares».', en: 'What came from the Utility Belt could not be read. Tap “Do it with phones” again.' },
+  traidaInvalida: { es: 'No se pudo leer lo que llegó del Toolbox. Vuelve a tocar «Hacer con celulares».', en: 'What came from the Toolbox could not be read. Tap “Do it with phones” again.' },
 
   // Tema y fondo
   usarClaro: { es: 'Usar modo claro', en: 'Use light mode' },

@@ -1,7 +1,7 @@
 /* ============================================================================
    LA SOPA DE LETRAS, CON CELULARES
    ----------------------------------------------------------------------------
-   Como el crucigrama (crucigrama.js): se arma en Teacher's Utility Belt
+   Como el crucigrama (crucigrama.js): se arma en Teacher's Toolbox
    (src/sopa.js allá, con sus direcciones y sus pruebas) y llega aquí YA
    ARMADA por «Hacer con celulares». Aquí no se genera nada.
 

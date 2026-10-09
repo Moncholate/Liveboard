@@ -1,7 +1,7 @@
 /* ============================================================================
-   LO QUE LLEGA DEL UTILITY BELT
+   LO QUE LLEGA DEL TOOLBOX
    ----------------------------------------------------------------------------
-   Las herramientas de cierre de Teacher's Utility Belt, y su crucigrama,
+   Las herramientas de cierre de Teacher's Toolbox, y su crucigrama,
    funcionan sin internet. Su botón «Hacer con celulares» abre ESTA app con lo
    que el docente ya escribió (el objetivo, el molde, las consignas, el
    crucigrama armado), para que el curso responda desde el celular:

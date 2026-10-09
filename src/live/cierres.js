@@ -1,7 +1,7 @@
 /* ============================================================================
    LOS CIERRES, CON CELULARES
    ----------------------------------------------------------------------------
-   Las cinco herramientas de cierre de Teacher's Utility Belt, ahora con el
+   Las cinco herramientas de cierre de Teacher's Toolbox, ahora con el
    curso respondiendo desde el celular (8-oct-2026). En el Belt el docente
    cuenta manos o escribe lo que le dicen; aquí cada uno manda lo suyo y el
    proyector lo junta, SIN NOMBRES, como todo en Liveboard.

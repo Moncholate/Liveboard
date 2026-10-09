@@ -17,7 +17,7 @@ import { limpiarSopa, palabrasSopa } from './sopa.js'
    ayuda están en i18n.jsx (tipo_nube, ayuda_nube…), en los dos idiomas.
 
    LOS CIERRES (8-oct-2026) son las cinco herramientas de cierre de Teacher's
-   Utility Belt, ahora con el curso respondiendo desde el celular. En el Belt
+   Toolbox, ahora con el curso respondiendo desde el celular. En el Belt
    siguen funcionando sin internet; su botón «Hacer con celulares» abre una
    sala de Liveboard con lo que el docente escribió ya cargado (traida.js).
    Su lógica propia —huecos, semáforo, apuesta, muro— está en cierres.js. */
@@ -28,7 +28,7 @@ export const CIERRES = ['semaforo', 'duda', 'apuesta', 'antesahora', 'muro']
    qué armarlos. */
 export const ARMADOS = ['crucigrama', 'sopa']
 export const TIPOS = [...BASICOS, ...CIERRES, ...ARMADOS]
-/** Lo que puede llegar del Utility Belt por «Hacer con celulares». */
+/** Lo que puede llegar del Toolbox por «Hacer con celulares». */
 export const DESDE_BELT = [...CIERRES, ...ARMADOS]
 
 /** Los que llevan texto libre y se moderan como las abiertas: solo se

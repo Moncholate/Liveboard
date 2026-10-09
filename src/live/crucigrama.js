@@ -1,7 +1,7 @@
 /* ============================================================================
    EL CRUCIGRAMA, CON CELULARES
    ----------------------------------------------------------------------------
-   Se arma en Teacher's Utility Belt (src/crucigrama.js allá, con sus reglas de
+   Se arma en Teacher's Toolbox (src/crucigrama.js allá, con sus reglas de
    cruce y sus pruebas) y llega aquí YA ARMADO, por el botón «Hacer con
    celulares»: así el proyector muestra el mismo crucigrama que el docente
    estaba mirando. Aquí no se genera nada; se proyecta y se cuenta.

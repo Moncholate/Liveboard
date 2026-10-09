@@ -80,7 +80,7 @@ const ultimas = () => {
    entraron con ese PIN. Salvo que tenga más de 12 horas: es la de una clase
    anterior que quedó abierta, y se borra (limpieza.js).
 
-   `traida` es una actividad que llegó del Utility Belt (traida.js). En una
+   `traida` es una actividad que llegó del Toolbox (traida.js). En una
    sala nueva es la única —las de la última clase no vienen al caso—; en la
    sala que ya estaba abierta se agrega al final y se muestra de una vez: el
    curso ya está dentro y el docente quiere cerrar. Devuelve el PIN y, si la
@@ -285,7 +285,7 @@ function Preparar({ store, user, pin, clave, online, actividades, acciones, clas
     acciones.mostrar(i, lista[i]?.tipo)
   }
   const primeraLista = lista.findIndex(a => !problemaDe(a))
-  /* La que llegó del Utility Belt, mientras siga en la lista. */
+  /* La que llegó del Toolbox, mientras siga en la lista. */
   const iTraida = esperando ? lista.findIndex(a => a.id === esperando) : -1
 
   const cambiarIdioma = (l) => {
