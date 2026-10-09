@@ -160,6 +160,17 @@ function Sala({ store, pin, esperando, traidaRota, onCerrada }) {
   const actividades = comoLista(actividadesRaw)
   const idx = estado?.idx ?? null
   const actual = idx != null ? actividades[idx] : null
+  /* CERRAR LA PESTAÑA SIN CERRAR LA SALA deja los apodos y las respuestas en la
+     base hasta que se vuelva a abrir Liveboard (limpieza.js). Con estudiantes
+     dentro, el navegador pregunta antes de salir. El texto del aviso lo pone el
+     navegador: no se puede cambiar. */
+  const enSalaRef = useRef(0)
+  enSalaRef.current = conectados(online)
+  useEffect(() => {
+    const avisar = (e) => { if (enSalaRef.current > 0) { e.preventDefault(); e.returnValue = '' } }
+    addEventListener('beforeunload', avisar)
+    return () => removeEventListener('beforeunload', avisar)
+  }, [])
   /* El aviso de lo que llegó del Belt se va apenas se muestra una actividad. */
   const [espera, setEspera] = useState(esperando)
   useEffect(() => { if (idx != null) setEspera(null) }, [idx])
@@ -192,20 +203,24 @@ function Sala({ store, pin, esperando, traidaRota, onCerrada }) {
       {/* Con la pizarra, la pantalla justa: el papel ocupa lo que queda entre
           el encabezado y los botones, sin que nada se salga. */}
       <div className={`${estado?.pizarra ? 'h-[100dvh]' : 'min-h-screen'} flex flex-col`}>
-        <Encabezado store={store} user={user} pin={pin} meta={meta} online={online} tema={tema} onCerrar={cerrar} acciones={acciones} />
+        <Encabezado store={store} user={user} pin={pin} meta={meta} online={online} tema={tema} onCerrar={cerrar} acciones={acciones}
+          presentando={idx != null || Boolean(estado?.pizarra)} />
         {estado?.pizarra
           ? <PizarraProyector store={store} pin={pin} acciones={acciones} />
           : actual
-          ? <Presentar store={store} base={base} pin={pin} idx={idx} actividad={actual} actividades={actividades} online={online}
+          ? <Presentar store={store} base={base} pin={pin} clave={meta?.clave} idx={idx} actividad={actual} actividades={actividades} online={online}
               estado={estado} participantes={participantes} acciones={acciones} fondo={fondo} />
-          : <Preparar store={store} user={user} pin={pin} online={online} actividades={actividades} acciones={acciones} clase={clase}
+          : <Preparar store={store} user={user} pin={pin} clave={meta?.clave} online={online} actividades={actividades} acciones={acciones} clase={clase}
               fondo={fondo} setFondo={setFondo} esperando={espera} traidaRota={traidaRota} />}
       </div>
     </ProveedorIdioma>
   )
 }
 
-function Encabezado({ store, user, pin, meta, online, tema, onCerrar, acciones }) {
+/* Mientras se presenta, arriba queda solo lo de la clase: la cuenta de Google
+   es para Mis materiales, se usa al preparar, y el curso no tiene por qué
+   verla (9-oct-2026). */
+function Encabezado({ store, user, pin, meta, online, tema, onCerrar, acciones, presentando = false }) {
   const t = useT()
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3 bg-white border-b border-slate-200">
@@ -215,7 +230,7 @@ function Encabezado({ store, user, pin, meta, online, tema, onCerrar, acciones }
       <span className="text-slate-600">{t('conectados', conectados(online))}</span>
       <span className="text-slate-500">{t('pin')} <b className="text-slate-900 tracking-widest">{pin}</b></span>
       <BotonTema tema={tema} etiqueta={tema.oscuro ? t('usarClaro') : t('usarOscuro')} />
-      <Cuenta store={store} user={user} />
+      {!presentando && <Cuenta store={store} user={user} />}
       <BotonCompartir store={store} pin={pin} />
       <BotonPizarra pin={pin} clave={meta?.clave} acciones={acciones} />
       <BotonCelular pin={pin} clave={meta?.clave} />
@@ -226,7 +241,7 @@ function Encabezado({ store, user, pin, meta, online, tema, onCerrar, acciones }
 
 /* ── Preparar ────────────────────────────────────────────────────────────── */
 
-function Preparar({ store, user, pin, online, actividades, acciones, clase, fondo, setFondo, esperando, traidaRota }) {
+function Preparar({ store, user, pin, clave, online, actividades, acciones, clase, fondo, setFondo, esperando, traidaRota }) {
   const t = useT()
   /* Se edita en local y se guarda en la sala con una pausa: escribir en la base
      con cada tecla hace saltar el cursor cuando vuelve el eco. */
@@ -291,6 +306,13 @@ function Preparar({ store, user, pin, online, actividades, acciones, clase, fond
             <p className="text-xs text-slate-500">{t('fondoAyuda')}</p>
           </div>
           <SelectorFondo valor={fondo} onCambiar={setFondo} />
+        </div>
+        <div className="rounded-2xl bg-white border border-slate-200 p-4 flex flex-wrap items-center gap-3">
+          <div className="flex-1 min-w-[12rem]">
+            <p className="font-bold text-slate-800">{t('controlaCelular')}</p>
+            <p className="text-xs text-slate-500">{t('controlaCelularAyuda')}</p>
+          </div>
+          <BotonCelular pin={pin} clave={clave} etiqueta={t('mostrarCodigo')} />
         </div>
       </div>
 
@@ -441,7 +463,7 @@ function Unirse({ pin, online }) {
 
 /* ── Presentar ───────────────────────────────────────────────────────────── */
 
-function Presentar({ store, base, pin, idx, actividad, actividades, online, estado, participantes, acciones, fondo }) {
+function Presentar({ store, base, pin, clave, idx, actividad, actividades, online, estado, participantes, acciones, fondo }) {
   const t = useT()
   const total = actividades.length
   const aid = actividad.id
@@ -457,6 +479,8 @@ function Presentar({ store, base, pin, idx, actividad, actividades, online, esta
   const armado = destapables(actividad)
   const cruci = Boolean(armado)
   const enSala = conectados(online)
+  /* Con la columna de moderación abierta, la barra de abajo va compacta. */
+  const chico = moderando && moderable ? '!px-3 !py-2 text-sm' : ''
   const ir = (i) => acciones.mostrar(i, actividades[i]?.tipo)
 
   /* CRUCIGRAMA Y SOPA: cuando una palabra llega al umbral (la mitad de los
@@ -486,7 +510,8 @@ function Presentar({ store, base, pin, idx, actividad, actividades, online, esta
   const sinPanel = estado.resultados && actividad.tipo !== 'muro' && (aprobadasYPendientes?.aprobadas.length || 0) > 0
 
   return (
-    <main className="flex-1 flex min-h-0">
+    <main className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 flex min-h-0">
       <div className="flex-1 flex flex-col min-w-0">
         <div className={`flex-1 flex flex-col min-h-0 ${conFondo ? 'p-5 gap-5' : ''}`} style={conFondo ? { background: f.css } : undefined}>
         <div className={`${panel} ${conFondo ? 'pb-6' : ''}`}>
@@ -533,35 +558,6 @@ function Presentar({ store, base, pin, idx, actividad, actividades, online, esta
         </div>
         </div>
 
-        <footer className="flex flex-wrap items-center gap-2 px-6 py-3 bg-white border-t border-slate-200">
-          <Button variant="ghost" onClick={() => ir(idx - 1)} disabled={idx === 0}>{t('anterior')}</Button>
-          <Button variant="ghost" onClick={() => acciones.abrir(!estado.abierta)}>
-            {estado.abierta ? t('cerrarRespuestas') : t('reabrirRespuestas')}
-          </Button>
-          {apuesta
-            ? <FasesApuesta fase={fase} acciones={acciones} />
-            : cruci ? (
-              <Button variant="ghost" onClick={() => acciones.destapar(aid, armado.palabras.map(armado.clave))}>
-                {actividad.tipo === 'sopa' ? t('mostrarTodas') : t('destaparTodas')}
-              </Button>
-            ) : (
-              <Button variant="ghost" onClick={() => acciones.resultados(!estado.resultados)}>
-                {estado.resultados ? t('ocultarResultados') : t('mostrarResultados')}
-              </Button>
-            )}
-          {moderable && (
-            <Button variant="ghost" onClick={() => acciones.moderando(!moderando)} className={moderando ? '!border-teal-600 !text-teal-800' : ''}>
-              {t('moderar')}{pendientes ? ` · ${pendientes}` : ''}
-            </Button>
-          )}
-          <span className="flex-1 text-center text-slate-500">
-            {t('respondieron', n)}{estado.abierta ? '' : ` · ${t('cerradas')}`}
-          </span>
-          <Button variant="ghost" onClick={acciones.volverAPreparar}>{t('actividades')}</Button>
-          {idx < total - 1
-            ? <Button onClick={() => ir(idx + 1)}>{t('siguiente')}</Button>
-            : <Button onClick={acciones.volverAPreparar}>{t('terminar')}</Button>}
-        </footer>
       </div>
 
       {moderando && moderable && (
@@ -589,6 +585,46 @@ function Presentar({ store, base, pin, idx, actividad, actividades, online, esta
             onBorrador={(clave, texto) => acciones.borrador(aid, texto === null ? null : { clave, texto })} />
         </aside>
       )}
+      </div>
+
+      {/* LA BARRA DE ABAJO (9-oct-2026). Va a todo lo ancho, debajo de la
+          columna de moderación y no al lado: con la columna abierta le
+          quedaba la mitad de la pantalla y se partía en dos filas. Con la
+          columna abierta, además, los botones van compactos.
+          Lo que no está en su estado normal se ve de reojo: respuestas
+          cerradas y resultados ocultos en ámbar, moderación encendida en
+          teal. Y «3 de 25 respondieron»: sin el total no se sabe cuándo
+          pasar a lo siguiente. */}
+      <footer className="flex flex-wrap items-center gap-2 px-6 py-3 bg-white border-t border-slate-200">
+        <Button variant="ghost" className={chico} onClick={() => ir(idx - 1)} disabled={idx === 0}>{t('anterior')}</Button>
+        <Button variant={estado.abierta ? 'ghost' : 'aviso'} className={chico} onClick={() => acciones.abrir(!estado.abierta)}>
+          {estado.abierta ? t('cerrarRespuestas') : t('reabrirRespuestas')}
+        </Button>
+        {apuesta
+          ? <FasesApuesta fase={fase} acciones={acciones} className={chico} />
+          : cruci ? (
+            <Button variant="ghost" className={chico} onClick={() => acciones.destapar(aid, armado.palabras.map(armado.clave))}>
+              {actividad.tipo === 'sopa' ? t('mostrarTodas') : t('destaparTodas')}
+            </Button>
+          ) : (
+            <Button variant={estado.resultados ? 'ghost' : 'aviso'} className={chico} onClick={() => acciones.resultados(!estado.resultados)}>
+              {estado.resultados ? t('ocultarResultados') : t('mostrarResultados')}
+            </Button>
+          )}
+        {moderable && (
+          <Button variant={moderando ? 'activo' : 'ghost'} className={chico} onClick={() => acciones.moderando(!moderando)}>
+            {t('moderar')}{pendientes ? ` · ${pendientes}` : ''}
+          </Button>
+        )}
+        {moderable && <BotonCelular pin={pin} clave={clave} etiqueta={t('moderarEnTablet')} className={chico} />}
+        <span className={`flex-1 text-center text-slate-500 tabular-nums ${chico ? 'text-sm' : ''}`}>
+          {t('respondieronDe', n, Math.max(enSala, n))}{estado.abierta ? '' : ` · ${t('cerradas')}`}
+        </span>
+        <Button variant="ghost" className={chico} onClick={acciones.volverAPreparar}>{t('actividades')}</Button>
+        {idx < total - 1
+          ? <Button className={chico} onClick={() => ir(idx + 1)}>{t('siguiente')}</Button>
+          : <Button className={chico} onClick={acciones.volverAPreparar}>{t('terminar')}</Button>}
+      </footer>
     </main>
   )
 }
@@ -658,15 +694,21 @@ function JoinCorner({ pin }) {
 }
 
 /* El enlace para moderar desde el celular lleva la clave de la sala: con el
-   PIN solo se entra como estudiante. */
-function BotonCelular({ pin, clave }) {
+   PIN solo se entra como estudiante.
+
+   ESTÁ EN TRES LUGARES (9-oct-2026). Solo estaba arriba, entre «Compartir» y
+   «Cerrar sala», y decía «Celular»: el docente lo buscaba al moderar con la
+   tablet y no lo encontraba. Ahora va también junto a «Moderar», en la barra
+   de la actividad, y en una tarjeta al preparar, al lado del QR. Los tres
+   abren el mismo código. */
+function BotonCelular({ pin, clave, etiqueta = null, variant = 'ghost', className = '!px-3 !py-1.5 text-sm' }) {
   const t = useT()
   const [abierto, setAbierto] = useState(false)
   const url = `${location.origin}${location.pathname}#/mod?pin=${pin}&clave=${clave}`
   const qr = useQr(abierto && clave ? url : null, 480)
   return (
     <>
-      <Button variant="ghost" className="!px-3 !py-1.5 text-sm" onClick={() => setAbierto(true)} disabled={!clave}>{t('celular')}</Button>
+      <Button variant={variant} className={className} onClick={() => setAbierto(true)} disabled={!clave}>{etiqueta || t('celular')}</Button>
       {abierto && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 grid place-items-center p-4" onClick={() => setAbierto(false)}>
           <div className="rounded-3xl bg-white p-6 max-w-sm text-center" onClick={(e) => e.stopPropagation()}>

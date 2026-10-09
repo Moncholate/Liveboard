@@ -96,7 +96,7 @@ function EnVivo({ store, base, idx, actividades, actividad, enSala, estado, part
       <section>
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{t(`tipo_${actividad.tipo}`)} · {t('deTotal', idx + 1, total)}</p>
         <h1 className="text-xl font-black text-slate-900 leading-snug"><TextoConHuecos texto={tituloDe(actividad, t)} /></h1>
-        <p className="text-sm text-slate-600 mt-1">{t('respondieron', n)}{estado.abierta ? '' : ` · ${t('cerradas')}`}</p>
+        <p className="text-sm text-slate-600 mt-1">{t('respondieronDe', n, Math.max(enSala, n))}{estado.abierta ? '' : ` · ${t('cerradas')}`}</p>
       </section>
 
       <section className="grid grid-cols-2 gap-2">
@@ -104,7 +104,7 @@ function EnVivo({ store, base, idx, actividades, actividad, enSala, estado, part
         {idx < total - 1
           ? <Button className="!py-2 text-sm" onClick={() => ir(idx + 1)}>{t('siguiente')}</Button>
           : <Button className="!py-2 text-sm" onClick={acciones.volverAPreparar}>{t('terminar')}</Button>}
-        <Button variant="ghost" className="!py-2 text-sm" onClick={() => acciones.abrir(!estado.abierta)}>
+        <Button variant={estado.abierta ? 'ghost' : 'aviso'} className="!py-2 text-sm" onClick={() => acciones.abrir(!estado.abierta)}>
           {estado.abierta ? t('cerrarRespuestas') : t('reabrir')}
         </Button>
         {apuesta ? (
@@ -114,15 +114,15 @@ function EnVivo({ store, base, idx, actividades, actividad, enSala, estado, part
             {actividad.tipo === 'sopa' ? t('mostrarTodas') : t('destaparTodas')}
           </Button>
         ) : (
-          <Button variant="ghost" className="!py-2 text-sm" onClick={() => acciones.resultados(!estado.resultados)}>
+          <Button variant={estado.resultados ? 'ghost' : 'aviso'} className="!py-2 text-sm" onClick={() => acciones.resultados(!estado.resultados)}>
             {estado.resultados ? t('ocultarResultados') : t('mostrarResultados')}
           </Button>
         )}
         {/* La columna de moderación en el proyector: para corregir en grupo
             mientras se modera desde aquí. */}
         {moderable(actividad.tipo) && (
-          <Button variant="ghost" onClick={() => acciones.moderando(!estado.moderando)}
-            className={`col-span-2 !py-2 text-sm ${estado.moderando ? '!border-teal-600 !text-teal-800 !bg-teal-50' : ''}`}>
+          <Button variant={estado.moderando ? 'activo' : 'ghost'} onClick={() => acciones.moderando(!estado.moderando)}
+            className="col-span-2 !py-2 text-sm">
             {estado.moderando ? `● ${t('moderacionEnProyector')}` : t('mostrarModeracion')}
           </Button>
         )}
