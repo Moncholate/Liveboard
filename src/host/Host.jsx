@@ -230,10 +230,14 @@ function Encabezado({ store, user, pin, meta, online, tema, onCerrar, acciones, 
       <span className="text-slate-600">{t('conectados', conectados(online))}</span>
       <span className="text-slate-500">{t('pin')} <b className="text-slate-900 tracking-widest">{pin}</b></span>
       <BotonTema tema={tema} etiqueta={tema.oscuro ? t('usarClaro') : t('usarOscuro')} />
-      {!presentando && <Cuenta store={store} user={user} />}
+      {/* CADA ACCIÓN UNA SOLA VEZ POR PANTALLA (9-oct-2026): el botón de la
+          tablet y el de iniciar sesión estaban arriba y también abajo, y la
+          repetición confundía. Iniciar sesión vive en la tarjeta de
+          materiales; arriba solo se ve la cuenta ya abierta, para salir. La
+          tablet, en la tarjeta de Preparar y junto a «Moderar». */}
+      {!presentando && user && <Cuenta store={store} user={user} />}
       <BotonCompartir store={store} pin={pin} />
       <BotonPizarra pin={pin} clave={meta?.clave} acciones={acciones} />
-      <BotonCelular pin={pin} clave={meta?.clave} />
       <Button variant="danger" className="!px-3 !py-1.5 text-sm" onClick={onCerrar}>{t('cerrarSala')}</Button>
     </header>
   )
@@ -616,11 +620,13 @@ function Presentar({ store, base, pin, clave, idx, actividad, actividades, onlin
             {t('moderar')}{pendientes ? ` · ${pendientes}` : ''}
           </Button>
         )}
-        {moderable && <BotonCelular pin={pin} clave={clave} etiqueta={t('moderarEnTablet')} className={chico} />}
+        <BotonCelular pin={pin} clave={clave} etiqueta={moderable ? t('moderarEnTablet') : t('celular')} className={chico} />
         <span className={`flex-1 text-center text-slate-500 tabular-nums ${chico ? 'text-sm' : ''}`}>
           {t('respondieronDe', n, Math.max(enSala, n))}{estado.abierta ? '' : ` · ${t('cerradas')}`}
         </span>
-        <Button variant="ghost" className={chico} onClick={acciones.volverAPreparar}>{t('actividades')}</Button>
+        {/* En la última, «Terminar» ya vuelve a las actividades: dos botones
+            que hacen lo mismo, uno al lado del otro, confundían. */}
+        {idx < total - 1 && <Button variant="ghost" className={chico} onClick={acciones.volverAPreparar}>{t('actividades')}</Button>}
         {idx < total - 1
           ? <Button className={chico} onClick={() => ir(idx + 1)}>{t('siguiente')}</Button>
           : <Button className={chico} onClick={acciones.volverAPreparar}>{t('terminar')}</Button>}
@@ -696,11 +702,11 @@ function JoinCorner({ pin }) {
 /* El enlace para moderar desde el celular lleva la clave de la sala: con el
    PIN solo se entra como estudiante.
 
-   ESTÁ EN TRES LUGARES (9-oct-2026). Solo estaba arriba, entre «Compartir» y
-   «Cerrar sala», y decía «Celular»: el docente lo buscaba al moderar con la
-   tablet y no lo encontraba. Ahora va también junto a «Moderar», en la barra
-   de la actividad, y en una tarjeta al preparar, al lado del QR. Los tres
-   abren el mismo código. */
+   UNO POR PANTALLA (9-oct-2026). Estaba solo arriba, entre «Compartir» y
+   «Cerrar sala», y decía «Celular»: el docente no lo encontraba al moderar
+   con la tablet. Se agregó junto a «Moderar» y en una tarjeta al preparar,
+   y quedó repetido; ahora sale de arriba. Al preparar, la tarjeta; durante
+   una actividad, la barra de abajo. */
 function BotonCelular({ pin, clave, etiqueta = null, variant = 'ghost', className = '!px-3 !py-1.5 text-sm' }) {
   const t = useT()
   const [abierto, setAbierto] = useState(false)
