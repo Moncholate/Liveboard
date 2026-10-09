@@ -17,8 +17,8 @@
    del error; el docente puede apagarlo por actividad y mostrar solo la
    versión limpia. El autor ve en su celular qué cambió.
    ========================================================================== */
-import { useState } from 'react'
-import { LIMITES, abiertas, conTexto, nube, preguntasDelCurso, seVenCorrecciones } from './logic.js'
+import { useEffect, useRef, useState } from 'react'
+import { LIMITES, abiertas, borradorVigente, conTexto, nube, preguntasDelCurso, seVenCorrecciones } from './logic.js'
 import { Cambios } from './Cambios.jsx'
 import { useT } from '../i18n.jsx'
 
@@ -47,8 +47,13 @@ const Titulo = ({ children, estado = null, className = 'mb-1.5' }) => (
 export function Moderacion({
   actividad, respuestas, moderacion, participantes, conNombres = false,
   onPalabra, onAbierta, onAprobarVarias, onCorregir, onPregunta, onRespondida, onCorregirPregunta, onCorregirPalabra, onVerCorrecciones,
+  onBorrador,
 }) {
   const t = useT()
+  /* CORREGIR EN VIVO: lo que otro aparato está escribiendo (vivo) y cómo
+     mandar lo que se escribe aquí (manda). Ver borradorVigente en logic.js. */
+  const vivo = (clave) => borradorVigente(moderacion?.borrador, clave, Date.now())
+  const manda = (clave) => onBorrador && ((texto) => onBorrador(clave, texto))
   const interruptor = onVerCorrecciones && (
     <VerCorrecciones activo={seVenCorrecciones(moderacion)} onCambiar={onVerCorrecciones} />
   )
@@ -57,7 +62,8 @@ export function Moderacion({
     return (
       <div className="flex flex-col gap-3">
         {interruptor}
-        <ModerarPreguntas respuestas={respuestas} moderacion={moderacion} onPregunta={onPregunta} onRespondida={onRespondida} onCorregir={onCorregirPregunta} />
+        <ModerarPreguntas respuestas={respuestas} moderacion={moderacion} onPregunta={onPregunta} onRespondida={onRespondida} onCorregir={onCorregirPregunta}
+          vivo={vivo} manda={manda} />
       </div>
     )
   }
@@ -70,7 +76,7 @@ export function Moderacion({
         {interruptor}
         <ul className="flex flex-col gap-1.5">
           {palabras.map(p => (
-            <FilaEditable key={p.clave} unaLinea max={LIMITES.palabra}
+            <FilaEditable key={p.clave} unaLinea max={LIMITES.palabra} enVivo={vivo(`n:${p.clave}`)} onBorrador={manda(`n:${p.clave}`)}
               texto={p.texto} original={p.antes[0]} corregida={p.corregida} tachada={p.oculta} groseria={p.auto}
               onCorregir={onCorregirPalabra && ((txt) => onCorregirPalabra(p.origenes, txt))}
               pie={<span className="text-sm tabular-nums text-slate-500">{p.cuenta}</span>}
@@ -91,7 +97,7 @@ export function Moderacion({
     /* Una función y no un componente: definido aquí adentro, React lo trataría
        como uno nuevo en cada respuesta que llega y vaciaría lo que se corrige. */
     const fila = (r, acciones, estado) => (
-      <FilaEditable key={r.pid} estado={estado} texto={r.texto} original={r.original} corregida={r.corregida} groseria={r.groseria}
+      <FilaEditable key={r.pid} estado={estado} enVivo={vivo(`a:${r.pid}`)} onBorrador={manda(`a:${r.pid}`)} texto={r.texto} original={r.original} corregida={r.corregida} groseria={r.groseria}
         encabezado={(r.antes || r.ahora) && (
           <p className="text-sm mb-0.5">
             {r.antes && <span className="text-slate-500 line-through">{r.antes}</span>}
@@ -164,11 +170,11 @@ function VerCorrecciones({ activo, onCambiar }) {
   )
 }
 
-function ModerarPreguntas({ respuestas, moderacion, onPregunta, onRespondida, onCorregir }) {
+function ModerarPreguntas({ respuestas, moderacion, onPregunta, onRespondida, onCorregir, vivo, manda }) {
   const t = useT()
   const { pendientes, aprobadas, descartadas } = preguntasDelCurso(respuestas, moderacion)
   const fila = (q, children, estado) => (
-    <FilaEditable key={q.qid} estado={estado} texto={q.texto} original={q.original} corregida={q.corregida} groseria={q.groseria} apagada={q.respondida}
+    <FilaEditable key={q.qid} estado={estado} enVivo={vivo(`q:${q.qid}`)} onBorrador={manda(`q:${q.qid}`)} texto={q.texto} original={q.original} corregida={q.corregida} groseria={q.groseria} apagada={q.respondida}
       onCorregir={onCorregir && ((txt) => onCorregir(q.qid, txt, q.original))}
       pie={q.decision === true && <span className="text-xs font-bold text-slate-500 tabular-nums">▲ {t('votosN', q.votos)}</span>}
       acciones={children} />
@@ -222,19 +228,39 @@ function ModerarPreguntas({ respuestas, moderacion, onPregunta, onRespondida, on
    palabra de la nube. Va como componente propio y no dentro de Moderacion: el
    campo de corregir tiene estado, y definido adentro se rearmaba —y se
    vaciaba— cada vez que llegaba otra respuesta.
-   `onCorregir(texto)`: con texto vacío se quita la corrección. */
-function FilaEditable({ texto, original, corregida, groseria, estado = null, tachada = false, apagada = false, unaLinea = false, max = LIMITES.abierta, onCorregir, encabezado = null, pie, acciones }) {
+   `onCorregir(texto)`: con texto vacío se quita la corrección.
+   `onBorrador(texto | null)`: lo que se va escribiendo, para que el proyector
+   lo muestre en vivo; null al guardar o cancelar. `enVivo`: lo que otro
+   aparato está escribiendo en esta misma fila. */
+function FilaEditable({ texto, original, corregida, groseria, estado = null, tachada = false, apagada = false, unaLinea = false, max = LIMITES.abierta, onCorregir, onBorrador, enVivo = null, encabezado = null, pie, acciones }) {
   const t = useT()
   const [editando, setEditando] = useState(false)
   const [nuevo, setNuevo] = useState('')
-  const abrir = () => { setNuevo(texto); setEditando(true) }
-  const guardar = () => { onCorregir?.(nuevo); setEditando(false) }
+  /* El borrador sale con una pausa cortita: una escritura por tecla haría
+     cola en una WiFi lenta, y en vivo basta con que se vea fluir. */
+  const pausa = useRef(null)
+  const abierto = useRef(false)
+  const mandar = (v) => {
+    clearTimeout(pausa.current)
+    if (v === null) { onBorrador?.(null); return }
+    pausa.current = setTimeout(() => onBorrador?.(v), 120)
+  }
+  /* Si la fila desaparece a medio corregir (otra actividad, se aprobó desde
+     otro aparato), el borrador no puede quedar colgado en el proyector. */
+  useEffect(() => () => { if (abierto.current) { clearTimeout(pausa.current); onBorrador?.(null) } }, [])
+  const abrir = () => { setNuevo(texto); setEditando(true); abierto.current = true; mandar(texto) }
+  const cerrar = () => { setEditando(false); abierto.current = false; mandar(null) }
+  const guardar = () => { onCorregir?.(nuevo); cerrar() }
   /* Enter guarda y Esc cancela: se corrige en el momento, con el curso
      esperando, así que nada de buscar botones. */
   const teclas = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); guardar() }
-    if (e.key === 'Escape') { e.preventDefault(); setEditando(false) }
+    if (e.key === 'Escape') { e.preventDefault(); cerrar() }
   }
+  const escribir = (v) => { setNuevo(v); mandar(v) }
+  /* Lo que se está corrigiendo en otro aparato se muestra contra el texto del
+     estudiante, como quedará: tachado lo que sale, subrayado lo que entra. */
+  const base = corregida && original ? original : texto
   const campo = 'w-full rounded-lg border-2 border-teal-600 px-2 py-1.5 font-semibold text-slate-800 outline-none'
 
   return (
@@ -243,19 +269,21 @@ function FilaEditable({ texto, original, corregida, groseria, estado = null, tac
       {editando ? (
         <>
           {unaLinea
-            ? <input value={nuevo} maxLength={max} autoFocus aria-label={t('corregir')} onChange={(e) => setNuevo(e.target.value)} onKeyDown={teclas} className={campo} />
-            : <textarea value={nuevo} maxLength={max} rows={3} autoFocus aria-label={t('corregir')} onChange={(e) => setNuevo(e.target.value)} onKeyDown={teclas} className={campo} />}
+            ? <input value={nuevo} maxLength={max} autoFocus aria-label={t('corregir')} onChange={(e) => escribir(e.target.value)} onKeyDown={teclas} className={campo} />
+            : <textarea value={nuevo} maxLength={max} rows={3} autoFocus aria-label={t('corregir')} onChange={(e) => escribir(e.target.value)} onKeyDown={teclas} className={campo} />}
           <div className="mt-1.5 flex items-center gap-2">
             <span className="text-xs text-slate-500">{t('corregirAyuda')}</span>
             <span className="flex-1" />
-            {boton(t('cancelar'), 'border border-slate-300 text-slate-700', () => setEditando(false))}
+            {boton(t('cancelar'), 'border border-slate-300 text-slate-700', cerrar)}
             {boton(t('guardar'), 'bg-teal-700 text-white', guardar)}
           </div>
         </>
       ) : (
         <>
           {encabezado}
-          {corregida
+          {enVivo !== null
+            ? <Cambios antes={base} despues={enVivo} className="font-semibold text-slate-800" />
+            : corregida
             ? <Cambios antes={original} despues={texto} className={`font-semibold ${apagada ? 'text-slate-500' : 'text-slate-800'} ${tachada ? 'opacity-60' : ''}`} />
             : <p className={`font-semibold break-words ${tachada ? 'text-slate-500 line-through' : apagada ? 'text-slate-500' : 'text-slate-800'}`}>{texto}</p>}
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -264,6 +292,7 @@ function FilaEditable({ texto, original, corregida, groseria, estado = null, tac
                 {estado === 'pendiente' ? t('porRevisar') : `✓ ${t('enPantalla')}`}
               </span>
             )}
+            {enVivo !== null && <span className="text-xs font-bold text-teal-800 animate-pulse">✎ {t('corrigiendo')}</span>}
             {pie}
             {groseria && <span className="text-xs font-bold text-rose-700">{t('filtro')}</span>}
             <span className="flex-1" />

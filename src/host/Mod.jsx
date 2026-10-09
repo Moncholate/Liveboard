@@ -140,7 +140,8 @@ function EnVivo({ store, base, idx, actividades, actividad, enSala, estado, part
             onRespondida={(qid, si) => acciones.marcarRespondida(aid, qid, si)}
             onCorregirPregunta={(qid, texto, de) => acciones.corregirPregunta(aid, qid, texto, de)}
             onCorregirPalabra={(origenes, texto) => acciones.corregirPalabra(aid, origenes, texto)}
-            onVerCorrecciones={(si) => acciones.verCorrecciones(aid, si)} />
+            onVerCorrecciones={(si) => acciones.verCorrecciones(aid, si)}
+            onBorrador={(clave, texto) => acciones.borrador(aid, texto === null ? null : { clave, texto })} />
         </section>
       ) : (
         <section className="rounded-2xl bg-white border border-slate-200 p-4">

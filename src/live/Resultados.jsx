@@ -4,7 +4,7 @@
    Los usa el proyector (grandes) y el celular del docente (`chico`). Ninguno
    recibe nombres: lo que se dibuja aquí lo ve todo el curso.
    ========================================================================== */
-import { ALTERNATIVAS, conteoEncuesta, estadisticaEscala, nube, partirEnHuecos, resultadoRanking, tamanoEnNube } from './logic.js'
+import { ALTERNATIVAS, borradorVigente, conteoEncuesta, estadisticaEscala, nube, partirEnHuecos, resultadoRanking, tamanoEnNube } from './logic.js'
 import { CARCASA, CARCASA_INT, LAMPARA, TINTA_LAMPARA, calibracion, formaMuro, lecturaSemaforo, tarjetasMuro } from './cierres.js'
 import { casillasDe, claveDe, palabrasDe, progreso, rejilla, umbral } from './crucigrama.js'
 import { capsula, claveSopa, filasDe, palabrasSopa } from './sopa.js'
@@ -106,16 +106,22 @@ export function Escala({ respuestas, chico = false }) {
    un ✎ discreto. */
 /* `prefijo`: lo que va antes de cada texto, apagado («…porque» en Antes /
    Ahora). Los lados que escribió cada uno (r.antes, r.ahora) van arriba. */
-export function Abiertas({ aprobadas, chico = false, sobreFondo = false, verCambios = true, prefijo = null }) {
+export function Abiertas({ aprobadas, chico = false, sobreFondo = false, verCambios = true, prefijo = null, borrador = null }) {
   const t = useT()
+  /* CORREGIR EN VIVO: la tarjeta que el docente está corrigiendo (en la tablet
+     o aquí) cambia mientras escribe, con un borde que late. */
+  const vivo = (r) => borradorVigente(borrador, `a:${r.pid}`, Date.now())
   if (!aprobadas.length) return <Vacio chico={chico}>{t('vacioAbiertas')}</Vacio>
   return (
     <div className={`w-full grid ${chico ? 'gap-2' : 'gap-4 sm:grid-cols-2 xl:grid-cols-3'}`}>
       {aprobadas.map(r => (
-        <div key={r.pid} className={`relative rounded-2xl bg-white border border-slate-200 font-semibold text-slate-800 animate-pop ${chico ? 'p-2 text-sm' : 'p-5 text-2xl'} ${sobreFondo ? 'shadow-lg' : ''}`}>
+        <div key={r.pid} className={`relative rounded-2xl bg-white border font-semibold text-slate-800 animate-pop ${vivo(r) !== null ? 'border-teal-600 ring-4 ring-teal-600/30' : 'border-slate-200'} ${chico ? 'p-2 text-sm' : 'p-5 text-2xl'} ${sobreFondo ? 'shadow-lg' : ''}`}>
           {(r.antes || r.ahora) && <Lados antes={r.antes} ahora={r.ahora} chico={chico} />}
           {prefijo && <span className="font-normal text-slate-500">{prefijo} </span>}
-          {r.corregida && verCambios ? <Cambios antes={r.original} despues={r.texto} /> : r.texto}
+          {vivo(r) !== null
+            ? (verCambios ? <Cambios antes={r.original} despues={vivo(r)} /> : vivo(r))
+            : r.corregida && verCambios ? <Cambios antes={r.original} despues={r.texto} /> : r.texto}
+          {vivo(r) !== null && <span className={`block font-bold text-teal-800 animate-pulse ${chico ? 'text-xs' : 'text-base mt-1'}`}>✎ {t('corrigiendo')}</span>}
           {r.corregida && !verCambios && (
             <span title={t('corregida')} aria-label={t('corregida')}
               className={`absolute text-slate-400 font-normal ${chico ? 'top-1 right-1.5 text-xs' : 'top-2 right-3 text-base'}`}>✎</span>
@@ -161,8 +167,9 @@ export function Ranking({ actividad, respuestas, chico = false }) {
 /* Las preguntas aprobadas, sin nombres, de más a menos votadas. Las ya
    respondidas quedan al final, atenuadas: siguen ahí por si alguien quiere
    volver a ellas, pero no compiten con las que faltan. */
-export function Preguntas({ aprobadas, chico = false, sobreFondo = false, verCambios = true }) {
+export function Preguntas({ aprobadas, chico = false, sobreFondo = false, verCambios = true, borrador = null }) {
   const t = useT()
+  const vivo = (q) => borradorVigente(borrador, `q:${q.qid}`, Date.now())
   if (!aprobadas.length) return <Vacio chico={chico}>{t('vacioPreguntas')}</Vacio>
   return (
     <div className={`w-full flex flex-col ${chico ? 'gap-2' : 'gap-3 max-w-5xl mx-auto'}`}>
@@ -173,7 +180,12 @@ export function Preguntas({ aprobadas, chico = false, sobreFondo = false, verCam
             {q.votos}
             <span className="sr-only">{t('votosN', q.votos)}</span>
           </span>
-          {q.corregida && verCambios
+          {vivo(q) !== null
+            ? <p className={`flex-1 min-w-0 break-words font-semibold text-slate-800 ${chico ? 'text-sm' : 'text-2xl'}`}>
+                {verCambios ? <Cambios antes={q.original} despues={vivo(q)} /> : vivo(q)}
+                <span className={`block font-bold text-teal-800 animate-pulse ${chico ? 'text-xs' : 'text-base'}`}>✎ {t('corrigiendo')}</span>
+              </p>
+            : q.corregida && verCambios
             ? <Cambios antes={q.original} despues={q.texto} className={`flex-1 min-w-0 font-semibold ${q.respondida ? 'text-slate-500' : 'text-slate-800'} ${chico ? 'text-sm' : 'text-2xl'}`} />
             : <p className={`flex-1 min-w-0 break-words font-semibold ${q.respondida ? 'text-slate-500' : 'text-slate-800'} ${chico ? 'text-sm' : 'text-2xl'}`}>{q.texto}</p>}
           {q.respondida && <span className={`shrink-0 font-bold text-slate-500 ${chico ? 'text-xs' : 'text-base'}`}>✓ {t('respondida')}</span>}

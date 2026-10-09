@@ -205,3 +205,15 @@ describe('lo que llega del Utility Belt', () => {
     expect(leerTraida(enlace({ v: 1, actividad: { tipo: 'semaforo', pregunta: '' } }))).toEqual({ error: true })
   })
 })
+
+describe('corregir en vivo', () => {
+  it('el borrador vale para su clave y mientras esté fresco', async () => {
+    const { borradorVigente, VIGENCIA_BORRADOR } = await import('./logic.js')
+    const b = { clave: 'a:p1', texto: 'I went to the park.', at: 1000 }
+    expect(borradorVigente(b, 'a:p1', 2000)).toBe('I went to the park.')
+    expect(borradorVigente(b, 'a:p2', 2000)).toBeNull()
+    expect(borradorVigente(b, 'a:p1', 1000 + VIGENCIA_BORRADOR)).toBeNull()
+    expect(borradorVigente({ clave: 'a:p1', texto: '', at: 1000 }, 'a:p1', 2000)).toBe('')
+    expect(borradorVigente(null, 'a:p1', 2000)).toBeNull()
+  })
+})

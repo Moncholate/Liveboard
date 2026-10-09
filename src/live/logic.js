@@ -417,6 +417,23 @@ export const abiertas = (respuestas, decisiones = {}, participantes = {}, correc
 
 /* ── Corregir una respuesta abierta ────────────────────────────────────── */
 
+/* ── Corregir EN VIVO (9-oct-2026) ─────────────────────────────────────
+   Mientras el docente escribe una corrección —en la tablet, sobre todo—, el
+   texto va a moderacion/{aid}/borrador = { clave, texto, at } y el proyector
+   lo muestra cambiando letra a letra: el curso ve cómo se corrige, no solo el
+   resultado. `clave` dice qué se corrige: «a:pid» una abierta, «q:qid» una
+   pregunta, «n:clave» una palabra de la nube. Al guardar o cancelar se borra.
+
+   Si la tablet se cierra a medio corregir, el borrador quedaría para siempre
+   diciendo «corrigiendo…»: pasados dos minutos sin escribir, se ignora. */
+export const VIGENCIA_BORRADOR = 2 * 60 * 1000
+
+/** El texto del borrador si es de esta clave y está vigente; si no, null. */
+export const borradorVigente = (b, clave, ahora) =>
+  (b && b.clave === clave && typeof b.texto === 'string' && typeof b.at === 'number' && ahora - b.at < VIGENCIA_BORRADOR
+    ? b.texto.slice(0, LIMITES.abierta)
+    : null)
+
 /** La corrección guardada, si sigue valiendo para este texto; si no, null. */
 export const correccionVigente = (c, original) => {
   if (!c || typeof c.texto !== 'string') return null

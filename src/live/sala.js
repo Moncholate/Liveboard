@@ -32,7 +32,8 @@
                             correccionesPreguntas: { qid: { texto, de } },
                             correccionesNube: { clave escrita: texto },
                             verCorrecciones: false?,
-                            destapadas: { numero+dir: true } } }   (crucigrama)
+                            destapadas: { numero+dir: true },   (crucigrama y sopa)
+                            borrador: { clave, texto, at } } }   (corregir en vivo)
                    (la corrección del docente; `de` = el texto que corrigió,
                    para que caduque sola si el estudiante cambia el suyo.
                    verCorrecciones = false si el curso ve solo la versión
@@ -97,6 +98,11 @@ export const accionesDeSala = (store, pin) => {
       const cambios = Object.fromEntries(origenes.map(c => [c, limpio && claveDePalabra(limpio) ? limpio : null]))
       return store.update(`${base}/moderacion/${aid}/correccionesNube`, cambios)
     },
+    /* El borrador de una corrección, mientras se escribe (logic.js). Sin
+       texto (null) se borra: se guardó o se canceló. */
+    borrador: (aid, b) => (b
+      ? store.set(`${base}/moderacion/${aid}/borrador`, { clave: b.clave, texto: String(b.texto).slice(0, 140), at: store.stamp() })
+      : store.remove(`${base}/moderacion/${aid}/borrador`)),
     verCorrecciones: (aid, si) => store.set(`${base}/moderacion/${aid}/verCorrecciones`, si ? null : false),
     decidirPregunta: (aid, qid, decision) => store.set(`${base}/moderacion/${aid}/preguntas/${qid}`, decision),
     marcarRespondida: (aid, qid, si) => store.set(`${base}/moderacion/${aid}/respondidas/${qid}`, si ? true : null),

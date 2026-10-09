@@ -585,7 +585,8 @@ function Presentar({ store, base, pin, idx, actividad, actividades, online, esta
             onRespondida={(qid, si) => acciones.marcarRespondida(aid, qid, si)}
             onCorregirPregunta={(qid, texto, de) => acciones.corregirPregunta(aid, qid, texto, de)}
             onCorregirPalabra={(origenes, texto) => acciones.corregirPalabra(aid, origenes, texto)}
-            onVerCorrecciones={(si) => acciones.verCorrecciones(aid, si)} />
+            onVerCorrecciones={(si) => acciones.verCorrecciones(aid, si)}
+            onBorrador={(clave, texto) => acciones.borrador(aid, texto === null ? null : { clave, texto })} />
         </aside>
       )}
     </main>
@@ -614,15 +615,15 @@ function Resultados({ actividad, respuestas, moderacion, sobreFondo = false }) {
   const aprobadas = () => abiertas(respuestas, moderacion?.abiertas, {}, moderacion?.correcciones).aprobadas
   switch (actividad.tipo) {
     case 'semaforo': return <div className="w-full max-w-5xl mx-auto"><Semaforo respuestas={respuestas} /></div>
-    case 'duda': return <Abiertas aprobadas={aprobadas()} sobreFondo={sobreFondo} verCambios={seVenCorrecciones(moderacion)} />
-    case 'antesahora': return <Abiertas aprobadas={aprobadas()} sobreFondo={sobreFondo} verCambios={seVenCorrecciones(moderacion)} prefijo={t('porque')} />
+    case 'duda': return <Abiertas aprobadas={aprobadas()} sobreFondo={sobreFondo} verCambios={seVenCorrecciones(moderacion)} borrador={moderacion?.borrador} />
+    case 'antesahora': return <Abiertas aprobadas={aprobadas()} sobreFondo={sobreFondo} verCambios={seVenCorrecciones(moderacion)} prefijo={t('porque')} borrador={moderacion?.borrador} />
     case 'muro': return <Muro aprobadas={aprobadas()} sobreFondo={sobreFondo} verCambios={seVenCorrecciones(moderacion)} />
     case 'nube': return <Nube respuestas={respuestas} moderacion={moderacion?.palabras} correcciones={moderacion?.correccionesNube} />
     case 'encuesta': return <div className="w-full max-w-4xl mx-auto"><Encuesta actividad={actividad} respuestas={respuestas} /></div>
     case 'escala': return <div className="w-full max-w-4xl mx-auto"><Escala respuestas={respuestas} /></div>
-    case 'abierta': return <Abiertas aprobadas={abiertas(respuestas, moderacion?.abiertas, {}, moderacion?.correcciones).aprobadas} sobreFondo={sobreFondo} verCambios={seVenCorrecciones(moderacion)} />
+    case 'abierta': return <Abiertas aprobadas={abiertas(respuestas, moderacion?.abiertas, {}, moderacion?.correcciones).aprobadas} sobreFondo={sobreFondo} verCambios={seVenCorrecciones(moderacion)} borrador={moderacion?.borrador} />
     case 'ranking': return <div className="w-full max-w-4xl mx-auto"><Ranking actividad={actividad} respuestas={respuestas} /></div>
-    case 'preguntas': return <Preguntas aprobadas={preguntasDelCurso(respuestas, moderacion).aprobadas} sobreFondo={sobreFondo} verCambios={seVenCorrecciones(moderacion)} />
+    case 'preguntas': return <Preguntas aprobadas={preguntasDelCurso(respuestas, moderacion).aprobadas} sobreFondo={sobreFondo} verCambios={seVenCorrecciones(moderacion)} borrador={moderacion?.borrador} />
     default: return null
   }
 }

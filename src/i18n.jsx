@@ -193,6 +193,7 @@ export const TEXTOS = {
   corregirAyuda: { es: 'Enter guarda · Esc cancela', en: 'Enter saves · Esc cancels' },
   cancelar: { es: 'Cancelar', en: 'Cancel' },
   guardar: { es: 'Guardar', en: 'Save' },
+  corrigiendo: { es: 'corrigiendo…', en: 'correcting…' },
   quitarCorreccion: { es: 'Quitar corrección', en: 'Remove correction' },
   corregida: { es: 'Corregida', en: 'Corrected' },
   profeCorrigio: { es: 'Tu profe la corrigió', en: 'Your teacher corrected it' },
