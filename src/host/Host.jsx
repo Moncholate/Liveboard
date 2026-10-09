@@ -258,6 +258,11 @@ function Preparar({ store, user, pin, online, actividades, acciones, clase, fond
   const lanzar = async (i) => {
     await acciones.guardarActividades(lista)
     guardado.set(ULTIMAS_KEY, JSON.stringify(lista))
+    /* El título y el objetivo también, sin esperar la pausa: si se lanza
+       apenas se escribieron, la pausa se cancela al salir de Preparar y el
+       PDF salía solo con la fecha. */
+    acciones.guardarClase({ titulo, objetivo }).catch(() => {})
+    guardado.set(CLASE_KEY, JSON.stringify({ titulo, objetivo }))
     acciones.mostrar(i, lista[i]?.tipo)
   }
   const primeraLista = lista.findIndex(a => !problemaDe(a))
