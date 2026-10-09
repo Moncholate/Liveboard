@@ -10,7 +10,8 @@ import {
   ALTERNATIVAS, BASICOS, CIERRES, LIMITES, actividadNueva, conAlternativas, preguntaOpcional, problemaDe, rangoAlternativas,
 } from '../live/logic.js'
 import { Button } from '../ui.jsx'
-import { MODOS, palabrasDe } from '../live/crucigrama.js'
+import { MODOS } from '../live/crucigrama.js'
+import { destapables } from '../live/sopa.js'
 
 export function Editor({ lista, setLista, onMostrar }) {
   const t = useT()
@@ -98,15 +99,15 @@ function Tarjeta({ a, i, total, onCambiar, onQuitar, onMover, onMostrar }) {
           <p className="text-xs text-slate-500">{t('consignas')} · {t('consignasReparte')}</p>
         </>
       )}
-      {a.tipo === 'crucigrama' && (
+      {destapables(a) && (
         <>
-          {/* Las palabras no se editan aquí: el crucigrama llega armado del
-              Belt, y moverle una letra lo rompería. Sí se elige cuándo se
-              destapa cada palabra en la pantalla. */}
+          {/* Las palabras no se editan aquí: el crucigrama y la sopa llegan
+              armados del Belt, y moverles una letra los rompería. Sí se elige
+              cuándo aparece cada palabra en la pantalla. */}
           <p className="text-sm text-slate-700">
-            {palabrasDe(a).map(p => p.original).join(' · ')}
+            {destapables(a).palabras.map(p => p.original).join(' · ')}
           </p>
-          <p className="text-xs text-slate-500">{t('crucigramaDelBelt', palabrasDe(a).length)}</p>
+          <p className="text-xs text-slate-500">{t('crucigramaDelBelt', destapables(a).palabras.length)}</p>
           <label className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
             <span className="font-semibold">{t('destaparCuando')}</span>
             <select value={a.destapar || 'mitad'} onChange={(e) => onCambiar({ destapar: e.target.value })}

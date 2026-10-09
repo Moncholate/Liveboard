@@ -174,6 +174,8 @@ export async function descargarPdf(resumen) {
           parrafo(t('laSacaron', p.sacaron), { size: 9, color: GRIS, gap: 2 })
         })
       }
+    } else if (a.tipo === 'sopa') {
+      a.palabras.forEach(p => filaConDato(p.original, t('laEncontraron', p.encontraron)))
     } else if (a.tipo === 'apuesta') {
       a.consignas.forEach((c, i) => parrafo(`${i + 1}. ${c}`, { size: 12, gap: 1 }))
       y += 2

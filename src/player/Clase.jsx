@@ -177,6 +177,14 @@ function Actividad({ a, n }) {
         </div>
       )
     })
+  } else if (a.tipo === 'sopa') {
+    cuerpo = (
+      <ul className="flex flex-col gap-1">
+        {a.palabras.map((p, i) => (
+          <li key={i} className="text-slate-800"><b>{p.original}</b> <span className="text-xs text-slate-500">· {t('laEncontraron', p.encontraron)}</span></li>
+        ))}
+      </ul>
+    )
   } else if (a.tipo === 'apuesta') {
     cuerpo = (
       <>

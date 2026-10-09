@@ -99,15 +99,16 @@ export const casillasDe = (p) => Array.from({ length: p.palabra.length }, (_, i)
 /** ¿Lo escrito es la palabra? Sin tildes, mayúsculas ni espacios. */
 export const acierta = (escrito, p) => soloLetras(escrito) === p.palabra
 
-/** Cuántos tienen cada palabra, y cuántos terminaron todo. */
-export const progreso = (respuestas, palabras) => {
-  const por = Object.fromEntries(palabras.map(p => [claveDe(p), 0]))
+/** Cuántos tienen cada palabra, y cuántos terminaron todo. `clave` cambia
+    en la sopa de letras (sopa.js), que usa la misma cuenta. */
+export const progreso = (respuestas, palabras, clave = claveDe) => {
+  const por = Object.fromEntries(palabras.map(p => [clave(p), 0]))
   let terminaron = 0
   for (const r of Object.values(respuestas || {})) {
     const bien = r?.bien || {}
     let todas = palabras.length > 0
     for (const p of palabras) {
-      if (bien[claveDe(p)] === true) por[claveDe(p)]++
+      if (bien[clave(p)] === true) por[clave(p)]++
       else todas = false
     }
     if (todas) terminaron++
@@ -124,5 +125,5 @@ export const umbral = (modo, conectados) => {
 }
 
 /** Las que ya llegaron al umbral y todavía no están destapadas. */
-export const porDestapar = (palabras, por, minimo, destapadas = {}) =>
-  palabras.map(claveDe).filter(k => destapadas[k] !== true && (por[k] || 0) >= minimo)
+export const porDestapar = (palabras, por, minimo, destapadas = {}, clave = claveDe) =>
+  palabras.map(clave).filter(k => destapadas?.[k] !== true && (por[k] || 0) >= minimo)

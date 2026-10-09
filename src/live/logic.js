@@ -11,6 +11,7 @@
    ========================================================================== */
 import { esGroseria } from './groserias.js'
 import { limpiarCrucigrama, palabrasDe as palabrasCrucigrama } from './crucigrama.js'
+import { limpiarSopa, palabrasSopa } from './sopa.js'
 
 /* Los tipos de actividad, en el orden en que se ofrecen. Sus nombres y su
    ayuda están en i18n.jsx (tipo_nube, ayuda_nube…), en los dos idiomas.
@@ -22,11 +23,13 @@ import { limpiarCrucigrama, palabrasDe as palabrasCrucigrama } from './crucigram
    Su lógica propia —huecos, semáforo, apuesta, muro— está en cierres.js. */
 export const BASICOS = ['nube', 'encuesta', 'escala', 'abierta', 'ranking', 'preguntas']
 export const CIERRES = ['semaforo', 'duda', 'apuesta', 'antesahora', 'muro']
-/* El crucigrama también llega del Belt, ya armado (crucigrama.js), pero no se
-   ofrece en «Agregar»: aquí no hay con qué armarlo. */
-export const TIPOS = [...BASICOS, ...CIERRES, 'crucigrama']
+/* El crucigrama y la sopa de letras también llegan del Belt, ya armados
+   (crucigrama.js, sopa.js), pero no se ofrecen en «Agregar»: aquí no hay con
+   qué armarlos. */
+export const ARMADOS = ['crucigrama', 'sopa']
+export const TIPOS = [...BASICOS, ...CIERRES, ...ARMADOS]
 /** Lo que puede llegar del Utility Belt por «Hacer con celulares». */
-export const DESDE_BELT = [...CIERRES, 'crucigrama']
+export const DESDE_BELT = [...CIERRES, ...ARMADOS]
 
 /** Los que llevan texto libre y se moderan como las abiertas: solo se
     proyectan los que el docente aprueba, y se pueden corregir. */
@@ -35,7 +38,7 @@ export const moderable = (tipo) => conTexto(tipo) || tipo === 'nube' || tipo ===
 
 /** Antes / Ahora y la apuesta se explican solos: la pregunta es opcional y,
     sin ella, el título es el nombre del tipo (tituloDe). */
-export const preguntaOpcional = (tipo) => tipo === 'antesahora' || tipo === 'apuesta' || tipo === 'crucigrama'
+export const preguntaOpcional = (tipo) => tipo === 'antesahora' || tipo === 'apuesta' || ARMADOS.includes(tipo)
 
 /** El semáforo arranca con el resultado tapado, como en el Belt: si el verde
     ya se ve lleno, el que dudaba elige verde. Se destapa con «Mostrar resultados». */
@@ -136,6 +139,7 @@ export const problemaDe = (a) => {
   if ((a.tipo === 'duda' || a.tipo === 'muro') && !tieneTexto(a.pregunta)) return 'prob_sinMolde'
   if (a.tipo === 'apuesta' && !consignasDe(a).length) return 'prob_sinConsignas'
   if (a.tipo === 'crucigrama' && palabrasCrucigrama(a).length < 2) return 'prob_sinCrucigrama'
+  if (a.tipo === 'sopa' && !palabrasSopa(a).length) return 'prob_sinSopa'
   if (conAlternativas(a.tipo)) {
     const llenas = (a.alternativas || []).filter(x => String(x).trim())
     if (llenas.length < rangoAlternativas(a.tipo).min) return a.tipo === 'ranking' ? 'prob_pocosElementos' : 'prob_pocasAlternativas'
@@ -156,6 +160,7 @@ export const limpiarActividad = (a) => ({
   ...(a.tipo === 'antesahora' && limpiarLado(a.ahora) ? { ahora: limpiarLado(a.ahora) } : {}),
   ...(a.tipo === 'apuesta' ? { consignas: consignasDe(a) } : {}),
   ...(a.tipo === 'crucigrama' ? limpiarCrucigrama(a) : {}),
+  ...(a.tipo === 'sopa' ? limpiarSopa(a) : {}),
 })
 
 /* ── Palabras ──────────────────────────────────────────────────────────── */

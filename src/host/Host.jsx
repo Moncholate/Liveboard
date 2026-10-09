@@ -31,10 +31,11 @@ import {
   LARGO_OBJETIVO, LARGO_TITULO, actividadesParaSala, idMaterialNuevo, listaDeMateriales, materialParaGuardar, rutaMaterial, rutaMateriales,
 } from '../live/materiales.js'
 import {
-  Abiertas, Apuesta, Crucigrama, Encuesta, Escala, MarcoAntesAhora, Muro, Nube, Preguntas, Ranking, Semaforo, TextoConHuecos,
+  Abiertas, Apuesta, Crucigrama, Encuesta, Escala, Sopa, MarcoAntesAhora, Muro, Nube, Preguntas, Ranking, Semaforo, TextoConHuecos,
 } from '../live/Resultados.jsx'
 import { faseApuesta } from '../live/cierres.js'
-import { claveDe, palabrasDe, porDestapar, progreso, umbral } from '../live/crucigrama.js'
+import { porDestapar, progreso, umbral } from '../live/crucigrama.js'
+import { destapables } from '../live/sopa.js'
 import { leerTraida } from '../live/traida.js'
 import { Moderacion } from '../live/Moderacion.jsx'
 import { Editor } from './Editor.jsx'
@@ -447,17 +448,19 @@ function Presentar({ store, base, pin, idx, actividad, actividades, online, esta
   const moderable = esModerable(actividad.tipo)
   const apuesta = actividad.tipo === 'apuesta'
   const fase = faseApuesta(estado)
-  const cruci = actividad.tipo === 'crucigrama'
+  /* El crucigrama y la sopa: llegan armados del Belt y se destapan igual. */
+  const armado = destapables(actividad)
+  const cruci = Boolean(armado)
   const enSala = conectados(online)
   const ir = (i) => acciones.mostrar(i, actividades[i]?.tipo)
 
-  /* CRUCIGRAMA: cuando una palabra llega al umbral (la mitad de los
+  /* CRUCIGRAMA Y SOPA: cuando una palabra llega al umbral (la mitad de los
      conectados, por defecto), este proyector la anota como destapada. Queda
      anotada: si después se desconecta alguien, no se vuelve a tapar. */
   useEffect(() => {
-    if (!cruci || respuestas === undefined || moderacion === undefined) return
-    const palabras = palabrasDe(actividad)
-    const nuevas = porDestapar(palabras, progreso(respuestas, palabras).por, umbral(actividad.destapar, enSala), moderacion?.destapadas)
+    if (!armado || respuestas === undefined || moderacion === undefined) return
+    const { palabras, clave } = armado
+    const nuevas = porDestapar(palabras, progreso(respuestas, palabras, clave).por, umbral(actividad.destapar, enSala), moderacion?.destapadas, clave)
     if (nuevas.length) acciones.destapar(aid, nuevas)
   }, [cruci, respuestas, moderacion, enSala])
   const n = cuantosRespondieron(respuestas)
@@ -495,10 +498,13 @@ function Presentar({ store, base, pin, idx, actividad, actividades, online, esta
 
         <div className={`flex-1 flex items-center justify-center min-h-0 overflow-auto ${conFondo ? 'px-3 py-2' : 'px-8 py-8'}`}>
           {cruci ? (
-            /* El crucigrama se ve siempre: lo que se tapa son las palabras. */
+            /* Se ven siempre: lo que se tapa son las palabras. */
             <div className={conFondo ? `${panel} p-8 w-full` : 'w-full'}>
-              <Crucigrama actividad={actividad} respuestas={respuestas} destapadas={moderacion?.destapadas} conectados={enSala}
-                onDestapar={(claves) => acciones.destapar(aid, claves)} />
+              {actividad.tipo === 'sopa'
+                ? <Sopa actividad={actividad} respuestas={respuestas} destapadas={moderacion?.destapadas} conectados={enSala}
+                    onDestapar={(claves) => acciones.destapar(aid, claves)} />
+                : <Crucigrama actividad={actividad} respuestas={respuestas} destapadas={moderacion?.destapadas} conectados={enSala}
+                    onDestapar={(claves) => acciones.destapar(aid, claves)} />}
             </div>
           ) : apuesta ? (
             /* La apuesta va por fases, no por «mostrar resultados». */
@@ -530,7 +536,9 @@ function Presentar({ store, base, pin, idx, actividad, actividades, online, esta
           {apuesta
             ? <FasesApuesta fase={fase} acciones={acciones} />
             : cruci ? (
-              <Button variant="ghost" onClick={() => acciones.destapar(aid, palabrasDe(actividad).map(claveDe))}>{t('destaparTodas')}</Button>
+              <Button variant="ghost" onClick={() => acciones.destapar(aid, armado.palabras.map(armado.clave))}>
+                {actividad.tipo === 'sopa' ? t('mostrarTodas') : t('destaparTodas')}
+              </Button>
             ) : (
               <Button variant="ghost" onClick={() => acciones.resultados(!estado.resultados)}>
                 {estado.resultados ? t('ocultarResultados') : t('mostrarResultados')}

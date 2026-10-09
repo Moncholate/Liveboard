@@ -7,6 +7,7 @@
 import { ALTERNATIVAS, conteoEncuesta, estadisticaEscala, nube, partirEnHuecos, resultadoRanking, tamanoEnNube } from './logic.js'
 import { CARCASA, CARCASA_INT, LAMPARA, TINTA_LAMPARA, calibracion, formaMuro, lecturaSemaforo, tarjetasMuro } from './cierres.js'
 import { casillasDe, claveDe, palabrasDe, progreso, rejilla, umbral } from './crucigrama.js'
+import { capsula, claveSopa, filasDe, palabrasSopa } from './sopa.js'
 import { useT } from '../i18n.jsx'
 import { Cambios } from './Cambios.jsx'
 
@@ -457,6 +458,98 @@ export function Crucigrama({ actividad, respuestas, destapadas, conectados, onDe
             onNumero={onDestapar ? destaparEn : undefined} />
         </div>
         {listas}
+      </div>
+      {pie}
+    </div>
+  )
+}
+
+/* ── Sopa de letras ──────────────────────────────────────────────────── */
+
+/* LA CUADRÍCULA DE LA SOPA. Cada palabra se marca con su cápsula, debajo de
+   las letras, como en el Belt: pintadas casilla por casilla, dos palabras que
+   se tocan se leerían como una sola. `llenas` = claves con cápsula verde
+   rellena; `apagadas` = claves con cápsula gris hueca (en el celular: las que
+   marcó la pantalla). `ancla` = la primera letra tocada. */
+export function SopaGrilla({ filas, palabras, llenas, apagadas = new Set(), ancla = null, lado, onTocar }) {
+  const n = filas.length
+  return (
+    <div className="relative w-max bg-white">
+      <svg viewBox={`0 0 ${n} ${n}`} aria-hidden="true" className="absolute inset-0 w-full h-full pointer-events-none">
+        {palabras.filter(p => llenas.has(claveSopa(p)) || apagadas.has(claveSopa(p))).map(p => {
+          const mia = llenas.has(claveSopa(p))
+          return (
+            <path key={p.palabra} d={capsula(p)} fill={mia ? '#10b981' : 'none'} fillOpacity="0.32"
+              stroke={mia ? 'none' : '#94a3b8'} strokeWidth="0.09" />
+          )
+        })}
+      </svg>
+      <div className="relative grid w-max" style={{ gridTemplateColumns: `repeat(${n}, ${lado})` }}>
+        {filas.map((fila, f) => [...fila].map((letra, c) => {
+          const esAncla = ancla && ancla.fila === f && ancla.col === c
+          const Casilla = onTocar ? 'button' : 'div'
+          return (
+            <Casilla key={`${f},${c}`} {...(onTocar ? { type: 'button', onClick: () => onTocar(f, c), 'aria-pressed': Boolean(esAncla) } : {})}
+              className="grid place-items-center font-bold text-slate-900 border border-slate-300"
+              style={{ width: lado, height: lado, padding: 0, fontSize: `calc(${lado} * 0.55)`, background: esAncla ? '#fde68a' : 'transparent', color: esAncla ? '#1e293b' : undefined }}>
+              {letra}
+            </Casilla>
+          )
+        }))}
+      </div>
+    </div>
+  )
+}
+
+/* LA SOPA DEL CURSO, en el proyector. Bajo cada palabra, cuántos la
+   encontraron, nunca quiénes; aparece marcada según la regla de la actividad,
+   y el docente puede marcarla a mano tocándola en la lista. `chico` (celular
+   del docente): solo la lista. */
+export function Sopa({ actividad, respuestas, destapadas, conectados, onDestapar, chico = false }) {
+  const t = useT()
+  const palabras = palabrasSopa(actividad)
+  const { por, terminaron } = progreso(respuestas, palabras, claveSopa)
+  const de = Math.max(conectados || 0, Object.keys(respuestas || {}).length)
+  const marcadas = new Set(palabras.map(claveSopa).filter(k => destapadas?.[k] === true))
+  const modo = actividad.destapar || 'mitad'
+  const lado = `max(22px, min(calc(52vw / ${actividad.lado}), calc(52vh / ${actividad.lado})))`
+
+  const listaPalabras = (
+    <ul className={`grid ${chico ? 'grid-cols-2 gap-2' : 'grid-cols-1 xl:grid-cols-2 gap-x-6 gap-y-3'}`}>
+      {palabras.map(p => {
+        const k = claveSopa(p)
+        const visible = marcadas.has(k)
+        const n = por[k] || 0
+        return (
+          <li key={k}>
+            <button type="button" disabled={!onDestapar || visible} onClick={() => onDestapar([k])}
+              className={`w-full text-left rounded-lg px-1.5 -mx-1.5 py-0.5 ${onDestapar && !visible ? 'hover:bg-slate-100' : ''}`}>
+              <span className={`block font-semibold ${visible ? 'text-teal-700 line-through decoration-2' : 'text-slate-800'} ${chico ? 'text-sm' : 'text-2xl'}`}>{p.original}</span>
+              <span className="flex items-center gap-2 mt-0.5">
+                <span className="flex-1 max-w-[10rem] h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                  <span className="block h-full rounded-full bg-teal-600 transition-all duration-500" style={{ width: `${de ? Math.min(100, (n / de) * 100) : 0}%` }} />
+                </span>
+                <span className={`tabular-nums text-slate-500 ${chico ? 'text-xs' : 'text-sm'}`}>{t('laTienen', n, de)}</span>
+              </span>
+            </button>
+          </li>
+        )
+      })}
+    </ul>
+  )
+  const pie = (
+    <p className={`text-slate-500 ${chico ? 'text-xs' : 'text-lg'}`}>
+      {t(`regla_${modo}`, umbral(modo, conectados))} · {t('terminaronN', terminaron)}
+    </p>
+  )
+  if (chico) return <div className="flex flex-col gap-3">{pie}{listaPalabras}</div>
+  return (
+    <div className="w-full flex flex-col gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-start gap-8">
+        <div className="overflow-x-auto shrink-0 mx-auto lg:mx-0">
+          <SopaGrilla filas={filasDe(actividad)} palabras={palabras} llenas={marcadas} lado={lado} />
+        </div>
+        <div className="min-w-0 flex-1">{listaPalabras}</div>
       </div>
       {pie}
     </div>

@@ -21,7 +21,8 @@ import {
   partirEnHuecos, preguntasDelCurso, tituloDe,
 } from '../live/logic.js'
 import { LAMPARA, NIVELES, faseApuesta, largoHueco, miCalibracion, moldeCompleto, textoDeMolde } from '../live/cierres.js'
-import { Consignas, Grilla, TextoConHuecos } from '../live/Resultados.jsx'
+import { Consignas, Grilla, SopaGrilla, TextoConHuecos } from '../live/Resultados.jsx'
+import { claveSopa, filasDe, palabraEntre, palabrasSopa } from '../live/sopa.js'
 import { acierta, casillasDe, claveDe, palabrasDe as palabrasCrucigrama, soloLetras } from '../live/crucigrama.js'
 import { Cambios } from '../live/Cambios.jsx'
 import { BotonPdf, normalizar } from './Clase.jsx'
@@ -151,6 +152,7 @@ function Espera() {
 
 function Responder({ store, base, pid, actividad, abierta, fase }) {
   if (actividad.tipo === 'preguntas') return <PreguntarYVotar store={store} base={base} pid={pid} actividad={actividad} abierta={abierta} />
+  if (actividad.tipo === 'sopa') return <ResponderSopa store={store} base={base} pid={pid} actividad={actividad} abierta={abierta} />
   if (actividad.tipo === 'crucigrama') return <ResponderCrucigrama store={store} base={base} pid={pid} actividad={actividad} abierta={abierta} />
   if (actividad.tipo === 'apuesta') return <ResponderApuesta store={store} base={base} pid={pid} actividad={actividad} abierta={abierta} fase={fase} />
   return <ResponderUna store={store} base={base} pid={pid} actividad={actividad} abierta={abierta} />
@@ -584,6 +586,80 @@ function ResponderCrucigrama({ store, base, pid, actividad, abierta }) {
           </section>
         )
       })}
+    </div>
+  )
+}
+
+/* SOPA DE LETRAS: cada uno la resuelve en su celular, como en el Belt: toca
+   la primera letra y la última. Tocar la misma casilla otra vez cancela. Lo
+   que marcó la pantalla se ve con un contorno gris y no cuenta como suyo.
+   Las casillas no bajan de 26 px —por debajo no se aciertan con el dedo—: una
+   sopa grande se desliza de lado antes que volverse imposible de tocar. */
+function ResponderSopa({ store, base, pid, actividad, abierta }) {
+  const t = useT()
+  const ruta = `${base}/respuestas/${actividad.id}/${pid}`
+  const mia = useValue(store, ruta)
+  const destapadas = useValue(store, `${base}/moderacion/${actividad.id}/destapadas`)
+  const [ancla, setAncla] = useState(null)
+  const [aviso, setAviso] = useState(null) // null | 'ultima' | 'nohay'
+  if (mia === undefined) return <Center>{t('cargando')}</Center>
+  const filas = filasDe(actividad)
+  const palabras = palabrasSopa(actividad)
+  const bien = mia?.bien || {}
+  const propias = new Set(palabras.map(claveSopa).filter(k => bien[k] === true))
+  const dePantalla = new Set(palabras.map(claveSopa).filter(k => destapadas?.[k] === true && bien[k] !== true))
+  const termino = palabras.length > 0 && propias.size === palabras.length
+
+  const tocar = async (fila, col) => {
+    if (!abierta) return
+    if (!ancla) { setAncla({ fila, col }); setAviso('ultima'); return }
+    if (ancla.fila === fila && ancla.col === col) { setAncla(null); setAviso(null); return }
+    const p = palabraEntre(palabras, ancla, { fila, col })
+    setAncla(null)
+    if (!p) { setAviso('nohay'); return }
+    setAviso(null)
+    if (bien[claveSopa(p)] !== true) await store.update(ruta, { [`bien/${claveSopa(p)}`]: true, at: store.stamp() })
+  }
+
+  const lado = `max(26px, min(calc((100vw - 2rem) / ${filas.length}), 2.5rem))`
+  return (
+    <div className="flex-1 flex flex-col gap-4">
+      <div className="flex items-baseline gap-3">
+        <h1 className="flex-1 text-2xl font-black text-slate-900 leading-snug">{tituloDe(actividad, t)}</h1>
+        <span className="text-sm font-bold text-teal-800 tabular-nums">{t('llevas', propias.size, palabras.length)}</span>
+      </div>
+      {termino && (
+        <div className="rounded-2xl bg-teal-700 text-white p-4 text-center">
+          <p className="text-2xl font-black">{t('terminaste')}</p>
+          <p className="mt-1 text-teal-50">{t('ayudaSopa')}</p>
+        </div>
+      )}
+      {!abierta
+        ? <p className="rounded-2xl bg-slate-100 p-4 text-center font-semibold text-slate-600">{t('respuestasCerradas')}</p>
+        : !termino && (
+          <p role="status" className={`text-sm font-semibold ${aviso === 'nohay' ? 'text-amber-900' : 'text-slate-600'}`}>
+            {aviso === 'nohay' ? t('ahiNoHay') : aviso === 'ultima' ? t('ahoraUltima') : t('tocaPrimera')}
+          </p>
+        )}
+      <div className="overflow-x-auto -mx-4 px-4">
+        <div className="w-max mx-auto">
+          <SopaGrilla filas={filas} palabras={palabras} llenas={propias} apagadas={dePantalla} ancla={ancla} lado={lado} onTocar={tocar} />
+        </div>
+      </div>
+      <section className="flex flex-col gap-2">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('palabrasABuscar')}</h2>
+        <ul className="flex flex-wrap gap-2">
+          {palabras.map(p => {
+            const k = claveSopa(p)
+            return (
+              <li key={k} className={`rounded-xl border px-3 py-1.5 font-semibold ${propias.has(k) ? 'border-teal-600 bg-teal-50 text-teal-800 line-through decoration-2' : 'border-slate-200 bg-white text-slate-800'}`}>
+                {propias.has(k) && '✓ '}{p.original}
+                {dePantalla.has(k) && <span className="ml-1.5 text-xs font-normal text-slate-500">· {t('marcadaEnPantalla')}</span>}
+              </li>
+            )
+          })}
+        </ul>
+      </section>
     </div>
   )
 }

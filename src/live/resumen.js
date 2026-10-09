@@ -21,6 +21,7 @@
 import { abiertas, consignasDe, conteoEncuesta, estadisticaEscala, idAlAzar, nube, preguntasDelCurso, resultadoRanking } from './logic.js'
 import { calibracion, lecturaSemaforo, tarjetasMuro } from './cierres.js'
 import { claveDe, palabrasDe, progreso } from './crucigrama.js'
+import { claveSopa, palabrasSopa } from './sopa.js'
 import { comoLista } from './sala.js'
 import { fondoPizarraValido } from './pizarra.js'
 import { limpiarObjetivo, limpiarTitulo } from './materiales.js'
@@ -75,6 +76,11 @@ export const resultadoDe = (a, respuestas, moderacion) => {
         ...base,
         palabras: palabras.map(p => ({ numero: p.numero, dir: p.dir, pista: p.pista || '', original: p.original, largo: p.palabra.length, sacaron: por[claveDe(p)] || 0 })),
       }
+    }
+    case 'sopa': {
+      const palabras = palabrasSopa(a)
+      const { por } = progreso(respuestas, palabras, claveSopa)
+      return { ...base, palabras: palabras.map(p => ({ original: p.original, encontraron: por[claveSopa(p)] || 0 })) }
     }
     case 'apuesta': {
       const consignas = consignasDe(a)
@@ -133,6 +139,7 @@ export const tieneAlgo = (r) => {
     case 'antesahora': return r.items.length > 0
     case 'apuesta': return r.apostaron > 0
     case 'crucigrama': return r.palabras.some(p => p.sacaron > 0)
+    case 'sopa': return r.palabras.some(p => p.encontraron > 0)
     default: return false
   }
 }
